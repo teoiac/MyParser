@@ -6,12 +6,20 @@ extern char* yytext;
 extern int yylineno;
 extern int yylex();
 void yyerror(const char * s);
-class SymTable* current;
 int errorCount = 0;
 %}
+
 %union {
+     char character;
      char* string;
+     int integer;
+     float floater;
+     bool boolean;
 }
+
+%token <integer> INTVAL
+%token <floater> FLOATVAL
+
 %token  BGIN END ASSIGN NR 
 %token<string> ID TYPE
 %start progr
