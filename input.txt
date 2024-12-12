@@ -1,0 +1,11 @@
+char teo;
+class Example{
+    int x;
+    func bool exemplu(char teo) begin
+    
+        return true;
+    end
+}
+
+char *hello;
+hello:= "HELLO WORLD";
