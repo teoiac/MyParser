@@ -15,7 +15,8 @@ void yyerror(const char *s);
     char character;
 }
 
-%token <string> TYPE ID STRINGVAL CHARVAL
+%token <string> TYPE ID STRINGVAL
+%token <character> CHARVAL
 %token <integer> INTVAL BOOLVAL
 %token <floater> FLOATVAL
 %token ARRAY CLASS BGIN END IF ELSE WHILE FOR FUNC VOID RETURN PRINT TYPEOF HEART
@@ -49,8 +50,14 @@ type_declaration:
 ;
 
 function_declaration:
-    FUNC TYPE ID P_OPEN P_CLOSE BGIN statement_list END
+    FUNC TYPE ID P_OPEN parameter_list P_CLOSE BGIN statement_list END
     { printf("Function declaration: %s\n", $3); }
+;
+
+parameter_list:
+    TYPE ID
+    | parameter_list ',' TYPE ID
+    | /* empty */
 ;
 
 class_declaration:
@@ -77,6 +84,8 @@ statement:
     assignment_statement
     | if_statement
     | while_statement
+    | for_statement
+    | return_statement
     | print_statement
 ;
 
@@ -93,6 +102,16 @@ if_statement:
 while_statement:
     WHILE P_OPEN expression P_CLOSE BGIN statement_list END
     { printf("While loop\n"); }
+;
+
+for_statement:
+    FOR P_OPEN assignment_statement expression ';' assignment_statement P_CLOSE BGIN statement_list END
+    { printf("For loop\n"); }
+;
+
+return_statement:
+    RETURN expression ';'
+    { printf("Return statement\n"); }
 ;
 
 print_statement:
