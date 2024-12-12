@@ -20,7 +20,6 @@
 "return"    {return RETURN;}
 "Print"     {return PRINT;}
 "TypeOf"    {return TYPEOF;}
-
 ":="        {return ASSIGN;}
 "=="        {return EQL;}
 "!="        {return NEQ;}
@@ -58,7 +57,8 @@
 [0-9]+                  {yylval.integer = atoi(yytext); return INTVAL;} 
 [0-9]*\.[0-9]+          {yylval.floater = atof(yytext); return FLOATVAL;}
 \"[^\"]*\"              {yylval.string = strdup(yytext); return STRINGVAL;}
-\'[^\']\'               {yylval.character = strdup(yytext); return CHARVAL;}
+\'[^\']\'               {yylval.character = yytext[1]; return CHARVAL;}
+
 
 [ \t]                   ;
 \n                      {yylineno++;}
