@@ -6,17 +6,25 @@
 %option noyywrap
 
 %%
-"int"|"float"|"char"|"string"|"bool" {yylval.string = strdup(yytext);return TYPE;} //duplicare caracter cu caracter cu strdup
+"int"|"float"|"char"|"string"|"bool" {yylval.string = strdup(yytext); return TYPE;}
+"array"     {return ARRAY;}
+"class"     {return CLASS;}
 "begin"     {return BGIN;}
 "end"       {return END;}
 "if"        {return IF;}
 "else"      {return ELSE;}
 "while"     {return WHILE;}
 "for"       {return FOR;}
+"func"      {return FUNC;}
+"void"      {return VOID;}
+"return"    {return RETURN;}
+"Print"     {return PRINT;}
+"TypeOf"    {return TYPEOF;}
 
 ":="        {return ASSIGN;}
 "=="        {return EQL;}
 "!="        {return NEQ;}
+"="         {return EQ;}
 
 "-"         {return MINUS;}
 "+"         {return PLUS;}
@@ -33,7 +41,7 @@
 "++"        {return INCREMENT;}
 "--"        {return DECREMENT;}
 ">"         {return GT;}
-">="        {return GTE}
+">="        {return GTE;}
 "<"         {return LT;}
 "<="        {return LTE;}
 "&&"        {return AND;}
@@ -46,15 +54,13 @@
 
 "<3"        {return HEART;}
 
-[a-zA-Z][a-zA-Z0-9]*    {yylval.string = strdup(yytext); return ID;}
-[1-9][0-9]*             {yylval.integer = atoi(yytext); return INTVAL;} 
-[1-9][0-9]*\.[0-9]+     {yylval.floater = atof(yytext); return FLOATVAL;}
-0\.[0-9]+               {yylval.floater = atof(yytext); return FLOATVAL;}
-\"[^\"]*\"              {yylval.string = strdup(yytext);return STRINGVAL;}
-\'[^\']\'               {yylval.character = strdup(yytext);return CHARVAL;}
+[a-zA-Z_][a-zA-Z0-9_]*  {yylval.string = strdup(yytext); return ID;}
+[0-9]+                  {yylval.integer = atoi(yytext); return INTVAL;} 
+[0-9]*\.[0-9]+          {yylval.floater = atof(yytext); return FLOATVAL;}
+\"[^\"]*\"              {yylval.string = strdup(yytext); return STRINGVAL;}
+\'[^\']\'               {yylval.character = strdup(yytext); return CHARVAL;}
 
-[ \t] ;
-\n          {yylineno++;}
-.           {return yytext[0];}
+[ \t]                   ;
+\n                      {yylineno++;}
+.                       {return yytext[0];}
 %%
- 
