@@ -1,91 +1,119 @@
 %{
-#include <iostream>
-#include <vector>
-extern FILE* yyin;
-extern char* yytext;
-extern int yylineno;
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 extern int yylex();
-void yyerror(const char * s);
-int errorCount = 0;
+extern int yylineno;
+void yyerror(const char *s);
+
 %}
 
 %union {
-     char character;
-     char* string;
-     int integer;
-     float floater;
-     bool boolean;
+    char *string;
+    int integer;
+    float floater;
+    char character;
 }
 
-%token <integer> INTVAL
+%token <string> TYPE ID STRINGVAL CHARVAL
+%token <integer> INTVAL BOOLVAL
 %token <floater> FLOATVAL
+%token ARRAY CLASS BGIN END IF ELSE WHILE FOR FUNC VOID RETURN PRINT TYPEOF HEART
+%token ASSIGN EQL NEQ EQ MINUS PLUS MULT DIV MOD
+%token P_OPEN P_CLOSE A_OPEN A_CLOSE B_OPEN B_CLOSE
+%token INCREMENT DECREMENT GT GTE LT LTE AND OR NOT DOT
 
-%token  BGIN END ASSIGN NR 
-%token<string> ID TYPE
-%start progr
+%start program
+
 %%
-progr :  declarations main {if (errorCount == 0) cout<< "The program is correct!" << endl;}
-      ;
 
-declarations : decl           
-	      |  declarations decl    
-	      ;
+program:
+    declaration_list
+;
 
-decl       :  TYPE ID ';' { 
-                              if(!current->existsId($2)) {
-                                    current->addVar($1,$2);
-                              } else {
-                                   errorCount++; 
-                                   yyerror("Variable already defined");
-                              }
-                          }
-              | TYPE ID  '(' list_param ')' ';'
-           ;
+declaration_list:
+    declaration_list declaration
+    | declaration
+;
 
-list_param : param
-            | list_param ','  param 
-            ;
-            
-param : TYPE ID 
-      ; 
-      
+declaration:
+    type_declaration
+    | function_declaration
+    | class_declaration
+    | statement
+;
 
-main : BGIN list END  
-     ;
-     
+type_declaration:
+    TYPE ID ';'
+    { printf("Type declaration: %s\n", $2); }
+;
 
-list :  statement ';' 
-     | list statement ';'
-     ;
+function_declaration:
+    FUNC TYPE ID P_OPEN P_CLOSE BGIN statement_list END
+    { printf("Function declaration: %s\n", $3); }
+;
 
-statement: ID ASSIGN ID
-         | ID ASSIGN NR  		 
-         | ID '(' call_list ')'
-         ;
-        
-call_list : NR
-           | call_list ',' NR
-           ;
+class_declaration:
+    CLASS ID A_OPEN class_body A_CLOSE
+    { printf("Class declaration: %s\n", $2); }
+;
+
+class_body:
+    class_body class_member
+    | class_member
+;
+
+class_member:
+    type_declaration
+    | function_declaration
+;
+
+statement_list:
+    statement_list statement
+    | statement
+;
+
+statement:
+    assignment_statement
+    | if_statement
+    | while_statement
+    | print_statement
+;
+
+assignment_statement:
+    ID ASSIGN expression ';'
+    { printf("Assignment: %s\n", $1); }
+;
+
+if_statement:
+    IF P_OPEN expression P_CLOSE BGIN statement_list END
+    { printf("If statement\n"); }
+;
+
+while_statement:
+    WHILE P_OPEN expression P_CLOSE BGIN statement_list END
+    { printf("While loop\n"); }
+;
+
+print_statement:
+    PRINT P_OPEN expression P_CLOSE ';'
+    { printf("Print statement\n"); }
+;
+
+expression:
+    INTVAL
+    | FLOATVAL
+    | STRINGVAL
+    | BOOLVAL
+    | ID
+;
+
 %%
-void yyerror(const char * s){
-     cout << "error:" << s << " at line: " << yylineno << endl;
+
+void yyerror(const char *s) {
+    fprintf(stderr, "Error at line %d: %s\n", yylineno, s);
 }
 
-int main(int argc, char** argv){
-     yyin=fopen(argv[1],"r");
-     current = new SymTable("global");
-     yyparse();
-     cout << "Variables:" <<endl;
-     current->printVars();
-     delete current;
-} 
-
-
-/*
-1) syntax requirments - pana in s12 trebuie facuta analiza sintactica
-
-- declarrare de tip uri si pentru array uri cu n-dimensiuni ?????
-- clase : sintaxa pt initializare obiecte
-- accessare metode, (.) - java style mai bine
-- 
-*/
+int main() {
+    return yyparse();
+}
