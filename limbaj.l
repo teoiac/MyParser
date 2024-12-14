@@ -59,7 +59,6 @@
 \"[^\"]*\"              {yylval.string = strdup(yytext); return STRINGVAL;}
 \'[^\']\'               {yylval.character = yytext[1]; return CHARVAL;}
 
-
 [ \t]                   ;
 \n                      {yylineno++;}
 .                       {return yytext[0];}
