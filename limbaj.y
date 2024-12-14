@@ -13,6 +13,7 @@ void yyerror(const char *s);
     int integer;
     float floater;
     char character;
+    int boolean;
 }
 
 %token <string> TYPE ID STRINGVAL
@@ -26,106 +27,169 @@ void yyerror(const char *s);
 
 %start program
 
+%precedence OR AND
+%precedence EQ NEQ
+%precedence LT GT LTE GTE
+%precedence PLUS MINUS
+%precedence MULT DIV MOD
+%precedence NOT
+
 %%
 
 program:
-    declaration_list
-;
+    class_section global_var_section function_section entry_point
+    ;
 
-declaration_list:
-    declaration_list declaration
-    | declaration
-;
+class_section:
+    class_section CLASS ID A_OPEN class_body A_CLOSE ';'
+    { printf("Class declared: %s\n", $3); }
+    | /* empty */
+    ;
 
-declaration:
+class_body:
+    class_body class_member
+    | class_member
+    ;
+
+class_member:
     type_declaration
     | function_declaration
-    | class_declaration
-    | statement
-;
+    ;
 
-type_declaration:
-    TYPE ID ';'
-    { printf("Type declaration: %s\n", $2); }
-;
+global_var_section:
+    global_var_section var_declaration
+    | var_declaration
+    ;
+
+var_declaration:
+    TYPE ID ';'                                  
+    { printf("Global variable declared: %s\n", $2); }
+    | TYPE ID ASSIGN expression ';'                   
+    { printf("Global variable declared and assigned: %s = ...\n", $2); }
+    | TYPE ID B_OPEN INTVAL B_CLOSE ';'               
+    { printf("Global array declared: %s[%d]\n", $2, $4); }
+    | TYPE ID B_OPEN INTVAL B_CLOSE ASSIGN expression ';' 
+    { printf("Global array declared and assigned: %s[%d] = ...\n", $2, $4); }
+    ;
+
+function_section:
+    function_section function_declaration
+    | /* empty */
+    ;
 
 function_declaration:
     FUNC TYPE ID P_OPEN parameter_list P_CLOSE BGIN statement_list END
-    { printf("Function declaration: %s\n", $3); }
-;
+    { printf("Function declared: %s\n", $3); }
+    ;
 
 parameter_list:
     TYPE ID
     | parameter_list ',' TYPE ID
     | /* empty */
-;
+    ;
 
-class_declaration:
-    CLASS ID A_OPEN class_body A_CLOSE
-    { printf("Class declaration: %s\n", $2); }
-;
-
-class_body:
-    class_body class_member
-    | class_member
-;
-
-class_member:
-    type_declaration
-    | function_declaration
-;
+entry_point:
+    FUNC VOID HEART P_OPEN P_CLOSE BGIN statement_list END
+    { printf("Entry point executed\n"); }
+    ;
 
 statement_list:
     statement_list statement
     | statement
-;
+    ;
 
 statement:
     assignment_statement
+    | object_assignment
+    | method_call
     | if_statement
     | while_statement
     | for_statement
     | return_statement
     | print_statement
-;
+    | expression ';'
+    ;
+
+type_declaration:
+    TYPE ID ';'
+    { printf("Type declared: %s %s\n", $1, $2); }
+    | TYPE ID ASSIGN expression ';'
+    { printf("Initialized variable: %s %s = ...\n", $1, $2); }
+    | ID ID ';'
+    ;
 
 assignment_statement:
     ID ASSIGN expression ';'
-    { printf("Assignment: %s\n", $1); }
-;
+    { printf("Assignment: %s = ...\n", $1); }
+    | ID B_OPEN expression B_CLOSE ASSIGN expression ';'
+    { printf("Array assignment: %s[...] = ...\n", $1); }
+    ;
+
+object_assignment:
+    ID DOT ID ASSIGN expression ';'
+    { printf("Object field assignment: %s.%s = ...\n", $1, $3); }
+    ;
+
+method_call:
+    ID DOT ID P_OPEN argument_list P_CLOSE ';'
+    { printf("Method call: %s.%s(...)\n", $1, $3); }
+    ;
+
+argument_list:
+    expression
+    | argument_list ',' expression
+    | /* empty */
+    ;
 
 if_statement:
-    IF P_OPEN expression P_CLOSE BGIN statement_list END
-    { printf("If statement\n"); }
-;
+    IF P_OPEN boolean_expression P_CLOSE BGIN statement_list END
+    { printf("If condition executed\n"); }
+    | IF P_OPEN boolean_expression P_CLOSE BGIN statement_list END ELSE BGIN statement_list END
+    { printf("If-Else condition executed\n"); }
+    ;
 
 while_statement:
-    WHILE P_OPEN expression P_CLOSE BGIN statement_list END
-    { printf("While loop\n"); }
-;
+    WHILE P_OPEN boolean_expression P_CLOSE BGIN statement_list END
+    { printf("While loop executed\n"); }
+    ;
 
 for_statement:
-    FOR P_OPEN assignment_statement expression ';' assignment_statement P_CLOSE BGIN statement_list END
-    { printf("For loop\n"); }
-;
-
+    FOR P_OPEN assignment_statement boolean_expression ';' assignment_statement P_CLOSE BGIN statement_list END
+    { printf("For loop executed\n"); }
+    ;
 return_statement:
     RETURN expression ';'
-    { printf("Return statement\n"); }
-;
+    { printf("Return statement executed\n"); }
+    ;
 
 print_statement:
     PRINT P_OPEN expression P_CLOSE ';'
-    { printf("Print statement\n"); }
-;
+    { printf("Print statement executed\n"); }
+    ;
 
-expression:
-    INTVAL
-    | FLOATVAL
-    | STRINGVAL
-    | BOOLVAL
-    | ID
-;
+expression : expression PLUS expression
+           | expression MINUS expression
+           | expression MULT expression
+           | expression DIV expression
+           | expression MOD expression
+           | ID
+           | INTVAL
+           | FLOATVAL
+           | CHARVAL
+           | STRINGVAL
+           ;
+
+boolean_expression  : expression GT expression
+                    | expression LT expression
+                    | expression GTE expression
+                    | expression LTE expression
+                    | expression EQL expression
+                    | expression NEQ expression
+                    | boolean_expression AND boolean_expression
+                    | boolean_expression OR boolean_expression
+                    | NOT boolean_expression
+                    | BOOLVAL
+                    ;
 
 %%
 
