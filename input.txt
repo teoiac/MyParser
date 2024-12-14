@@ -1,11 +1,18 @@
-char teo;
-class Example{
-    int x;
-    func bool exemplu(char teo) begin
-    
-        return true;
+class MyClass {
+    int a;
+    func int add(int x, int y) begin
+        return x + y;
     end
+};
+
+int x;
+int y[10];
+func void <3() begin 
+    for (i := 0; i<10; i:=1) {
+    Print(i);
 }
 
-char *hello;
-hello:= "HELLO WORLD";
+    Print(x);
+    obj.a := 5;
+    Print(result);
+end
