@@ -24,7 +24,8 @@
 "=="        {return EQL;}
 "!="        {return NEQ;}
 "="         {return EQ;}
-
+"skibidi"   {return SKIBIDI;}
+"rizz"      {return RIZZ;}
 "-"         {return MINUS;}
 "+"         {return PLUS;}
 "*"         {return MULT;}
