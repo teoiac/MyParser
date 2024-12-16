@@ -20,7 +20,7 @@ void yyerror(const char *s);
 %token <character> CHARVAL
 %token <integer> INTVAL BOOLVAL
 %token <floater> FLOATVAL
-%token ARRAY CLASS BGIN END IF ELSE WHILE FOR FUNC VOID RETURN PRINT TYPEOF HEART
+%token ARRAY CLASS BGIN END SKIBIDI RIZZ IF ELSE WHILE FOR FUNC VOID RETURN PRINT TYPEOF HEART
 %token ASSIGN EQL NEQ EQ MINUS PLUS MULT DIV MOD
 %token P_OPEN P_CLOSE A_OPEN A_CLOSE B_OPEN B_CLOSE
 %token INCREMENT DECREMENT GT GTE LT LTE AND OR NOT DOT
@@ -52,25 +52,52 @@ class_body:
     ;
 
 class_member:
-    type_declaration
+    var_declaration
     | function_declaration
+    ;
+var_declaration:
+    TYPE ID ';'
+    { printf("Global variable declared: %s\n", $2); }
+    | TYPE ID B_OPEN INTVAL B_CLOSE ';'
+    { printf("Global array declared: %s[%d]\n", $2, $4); }
+    
+    | ID ID ';'
+    {
+        printf("Class object declared : %s -> %s", $1, $2);
+    }
+    | ID assignment_statement
+    {
+        printf("Class obj declared and assigned");
+    }
+    | TYPE assignment_statement
+    {
+        printf("Variable declared and assigned");
+    }
     ;
 
 global_var_section:
     global_var_section var_declaration
-    | var_declaration
+    | /* empty */
     ;
 
 var_declaration:
-    TYPE ID ';'                                  
+    TYPE ID ';'  // For normal variables
     { printf("Global variable declared: %s\n", $2); }
-    | TYPE ID ASSIGN expression ';'                   
-    { printf("Global variable declared and assigned: %s = ...\n", $2); }
-    | TYPE ID B_OPEN INTVAL B_CLOSE ';'               
+    
+    | TYPE ID B_OPEN INTVAL B_CLOSE ';' // For arrays
     { printf("Global array declared: %s[%d]\n", $2, $4); }
-    | TYPE ID B_OPEN INTVAL B_CLOSE ASSIGN expression ';' 
-    { printf("Global array declared and assigned: %s[%d] = ...\n", $2, $4); }
+    
+    | ID ID ';'  // For class object declarations
+    { printf("Class object declared: %s -> %s\n", $1, $2); }
+
+    | ID assignment_statement
+    { printf("Class object declared and assigned\n"); }
+    
+    | TYPE assignment_statement
+    { printf("Variable declared and assigned\n"); }
     ;
+
+
 
 function_section:
     function_section function_declaration
@@ -91,7 +118,11 @@ parameter_list:
 entry_point:
     FUNC VOID HEART P_OPEN P_CLOSE BGIN statement_list END
     { printf("Entry point executed\n"); }
+    |FUNC VOID HEART P_OPEN P_CLOSE BGIN END
+    { printf("Entry point executed\n"); }
+    |FUNC VOID HEART P_OPEN P_CLOSE SKIBIDI statement_list RIZZ
     ;
+    
 
 statement_list:
     statement_list statement
@@ -108,15 +139,9 @@ statement:
     | return_statement
     | print_statement
     | expression ';'
+    |var_declaration    
     ;
 
-type_declaration:
-    TYPE ID ';'
-    { printf("Type declared: %s %s\n", $1, $2); }
-    | TYPE ID ASSIGN expression ';'
-    { printf("Initialized variable: %s %s = ...\n", $1, $2); }
-    | ID ID ';'
-    ;
 
 assignment_statement:
     ID ASSIGN expression ';'
@@ -142,9 +167,9 @@ argument_list:
     ;
 
 if_statement:
-    IF P_OPEN boolean_expression P_CLOSE BGIN statement_list END
+    IF P_OPEN expression P_CLOSE BGIN statement_list END
     { printf("If condition executed\n"); }
-    | IF P_OPEN boolean_expression P_CLOSE BGIN statement_list END ELSE BGIN statement_list END
+    | IF P_OPEN expression P_CLOSE BGIN statement_list END ELSE BGIN statement_list END
     { printf("If-Else condition executed\n"); }
     ;
 
@@ -154,9 +179,10 @@ while_statement:
     ;
 
 for_statement:
-    FOR P_OPEN assignment_statement boolean_expression ';' assignment_statement P_CLOSE BGIN statement_list END
+    FOR P_OPEN assignment_statement boolean_expression ';' ID INCREMENT P_CLOSE BGIN statement_list END
     { printf("For loop executed\n"); }
     ;
+
 return_statement:
     RETURN expression ';'
     { printf("Return statement executed\n"); }
@@ -167,17 +193,23 @@ print_statement:
     { printf("Print statement executed\n"); }
     ;
 
-expression : expression PLUS expression
-           | expression MINUS expression
-           | expression MULT expression
-           | expression DIV expression
-           | expression MOD expression
-           | ID
-           | INTVAL
-           | FLOATVAL
-           | CHARVAL
-           | STRINGVAL
-           ;
+expression:
+    expression PLUS expression
+    | expression MINUS expression
+    | expression MULT expression
+    | expression DIV expression
+    | expression MOD expression
+    | expression AND expression
+    | expression OR expression
+    | NOT expression
+    | P_OPEN expression P_CLOSE
+    | ID
+    | ID B_OPEN expression B_CLOSE
+    | INTVAL
+    | FLOATVAL
+    | STRINGVAL
+    | BOOLVAL
+    ;
 
 boolean_expression  : expression GT expression
                     | expression LT expression
