@@ -10,6 +10,7 @@
 "array"     {return ARRAY;}
 "class"     {return CLASS;}
 "begin"     {return BGIN;}
+"stop"      {return STOP;}
 "end"       {return END;}
 "if"        {return IF;}
 "else"      {return ELSE;}
