@@ -20,20 +20,23 @@ void yyerror(const char *s);
 %token <character> CHARVAL
 %token <integer> INTVAL BOOLVAL
 %token <floater> FLOATVAL
-%token ARRAY CLASS BGIN END SKIBIDI RIZZ IF ELSE WHILE STOP FOR FUNC VOID RETURN PRINT TYPEOF HEART
-%token ASSIGN EQL NEQ EQ MINUS PLUS MULT DIV MOD
+%token ARRAY CLASS BGIN END IF ELSE WHILE STOP FOR FUNC VOID RETURN PRINT TYPEOF HEART
+%token ASSIGN EQL NEQ  MINUS PLUS MULT DIV MOD
 %token P_OPEN P_CLOSE A_OPEN A_CLOSE B_OPEN B_CLOSE
 %token INCREMENT DECREMENT GT GTE LT LTE AND OR NOT DOT
 
 %start program
 
-%precedence NOT                 
-%precedence MULT DIV MOD        
-%precedence PLUS MINUS         
-%precedence LT GT LTE GTE       
-%precedence EQ NEQ              
-%precedence AND                 
-%precedence OR            
+         
+
+%left OR
+%left AND
+%left EQL NEQ
+%left LT LTE GT GTE  
+%left PLUS MINUS
+%left MULT DIV MOD
+%left NOT
+%left A_OPEN A_CLOSE B_OPEN B_CLOSE P_OPEN P_CLOSE
 
 
 %%
@@ -66,7 +69,7 @@ class_member:
 class_var_declaration:
     TYPE ID ';'
     { printf("Class variable declared: %s\n", $2); }
-    | TYPE ID n_dimensional_array ';'
+    | ARRAY TYPE ID n_dimensional_array ';'
     { printf("Class array declared\n"); }
     | TYPE assignment_statement
     {
@@ -92,7 +95,7 @@ var_declaration:
     TYPE ID ';'
     { printf("Global variable declared: %s\n", $2); }
     
-    | TYPE ID n_dimensional_array ';'
+    | ARRAY TYPE ID n_dimensional_array ';'
     { printf("Global array declared\n"); }
     
     | ID ID ';'  // For class object declarations
@@ -127,8 +130,6 @@ entry_point:
     { printf("Entry point executed\n"); }
     |FUNC VOID HEART P_OPEN P_CLOSE BGIN END
     { printf("Entry point executed\n"); }
-    |FUNC VOID HEART P_OPEN P_CLOSE SKIBIDI statement_list RIZZ
-    {printf("Sigma girlboss\n");}
     ;
     
 
@@ -176,6 +177,7 @@ field_access:
     {
         printf("Class member accessed\n");
     }
+    ;
 
 argument_list:
     expression
@@ -213,6 +215,9 @@ for_statement:
     { printf("For loop executed\n"); }
     | FOR P_OPEN assignment_statement boolean_expression ';' postfix_incr_decre P_CLOSE BGIN statement_list END
     { printf("For loop executed\n"); }
+    | FOR P_OPEN assignment_statement boolean_expression ';' ID ASSIGN expression  P_CLOSE BGIN statement_list END
+    { printf("For loop executed\n"); }
+   
     ;
 
 return_statement:
@@ -230,23 +235,26 @@ typeof_statement:
     {
         printf("TYPEOF Statement executed\n");
     }
+    ;
 
+// expresii aritmetice
 expression:
-    expression PLUS expression
-    | expression MINUS expression
+     expression PLUS expression
+    | expression MINUS expression 
     | expression MULT expression
     | expression DIV expression
     | expression MOD expression
-    | expression AND expression
-    | expression OR expression
-    | NOT expression
+   // | expression AND expression
+   // | expression OR expression
+    //| NOT expression
     | P_OPEN expression P_CLOSE
     | ID
-    | ID B_OPEN expression B_CLOSE
+   // | ID B_OPEN expression B_CLOSE
     | INTVAL
     | FLOATVAL
     | STRINGVAL
     | BOOLVAL
+    | CHARVAL
     | stop_statement
     ;
 
