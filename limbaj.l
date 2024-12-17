@@ -4,6 +4,8 @@
 %}
 
 %option noyywrap
+%option noinput nounput
+
 
 %%
 "int"|"float"|"char"|"string"|"bool" {yylval.string = strdup(yytext); return TYPE;}
@@ -24,9 +26,6 @@
 ":="        {return ASSIGN;}
 "=="        {return EQL;}
 "!="        {return NEQ;}
-"="         {return EQ;}
-"skibidi"   {return SKIBIDI;}
-"rizz"      {return RIZZ;}
 "-"         {return MINUS;}
 "+"         {return PLUS;}
 "*"         {return MULT;}
@@ -59,7 +58,7 @@
 [0-9]+                  {yylval.integer = atoi(yytext); return INTVAL;} 
 [0-9]*\.[0-9]+          {yylval.floater = atof(yytext); return FLOATVAL;}
 \"[^\"]*\"              {yylval.string = strdup(yytext); return STRINGVAL;}
-\'[^\']\'               {yylval.character = yytext[1]; return CHARVAL;}
+\'([^\\\'])\'           { yylval.character = yytext[1]; return CHARVAL; }
 
 [ \t]                   ;
 \n                      {yylineno++;}
