@@ -75,11 +75,15 @@ class_var_declaration:
     ;
 
 global_var_section:
-    global_var_section var_declaration
-    | /* optional*/
+    var_declaration_list
+    |/*empty*/
     ;
+var_declaration_list : 
+    var_declaration_list var_declaration
+    |var_declaration;
+
 n_dimensional_array:
-    | n_dimensional_array B_OPEN INTVAL B_CLOSE;
+    n_dimensional_array B_OPEN INTVAL B_CLOSE
     |B_OPEN INTVAL B_CLOSE
     |n_dimensional_array B_OPEN B_CLOSE
     |B_OPEN B_CLOSE
@@ -115,7 +119,6 @@ function_declaration:
 parameter_list:
     TYPE ID
     | parameter_list ',' TYPE ID
-    | /* empty */
     ;
 
 //main function
