@@ -1,7 +1,7 @@
-class gyatt{
+class exemplu{
     int x;
     bool z;
-    int y[200][24][44][221];
+    array int y[200][24][44][221];
     test()
     {
         x := 10;
@@ -15,12 +15,13 @@ int x:=5;
 string s;
 bool x := true;
 
-int a[2][3][5][7];
+array int a[2][3][5][7];
 func int hello(bool x) {
     a[4] :=x;
 }
-func void<3() skibidi
+func void<3() begin
     int a[]:= x;
+    char  a:='a';
     string gigachad:="chill guy";
     TypeOf(x);
     int x:= 5/4;
@@ -28,7 +29,7 @@ func void<3() skibidi
     begin
         a[5]:=20;
     end
-    for(i:=5;i<10;i++)
+    for(i:=5;i<10;i:=i+2)
     begin
         int a;
     end
@@ -37,7 +38,7 @@ func void<3() skibidi
         int t:=20;
         stop;
     end
-    gyatt w;
+    exemplu w;
     w.x;
     w.hello();
     if(x>10)
@@ -58,4 +59,4 @@ func void<3() skibidi
     {
         x:=15;
     }
-rizz
+end
