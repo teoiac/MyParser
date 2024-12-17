@@ -138,6 +138,7 @@ statement:
     assignment_statement
     | object_assignment
     | method_call
+    | field_access
     | if_statement
     | while_statement
     | for_statement
@@ -146,8 +147,8 @@ statement:
     | typeof_statement
     | expression ';'
     | var_declaration
-    |prefix_incr_decre
-    |postfix_incr_decre    
+    |prefix_incr_decre ';'
+    |postfix_incr_decre ';'   
     ;
 
 
@@ -167,6 +168,11 @@ method_call:
     ID DOT ID P_OPEN argument_list P_CLOSE ';'
     { printf("Method call: %s.%s(...)\n", $1, $3); }
     ;
+field_access:
+    ID DOT ID ';'
+    {
+        printf("Class member accessed\n");
+    }
 
 argument_list:
     expression
@@ -175,9 +181,9 @@ argument_list:
     ;
 
 if_statement:
-    IF P_OPEN boolean_expression P_CLOSE BGIN statement_list END
+    IF P_OPEN boolean_expression P_CLOSE A_OPEN statement_list A_CLOSE
     { printf("If condition executed\n"); }
-    | IF P_OPEN boolean_expression P_CLOSE BGIN statement_list END ELSE BGIN statement_list END
+    | IF P_OPEN boolean_expression P_CLOSE A_OPEN statement_list A_CLOSE ELSE A_OPEN statement_list A_CLOSE
     { printf("If-Else condition executed\n"); }
     ;
 //un fel de break pt loop
