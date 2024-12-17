@@ -1,18 +1,41 @@
-class MyClass {
-    int a;
-    func int add(int x, int y) begin
-        return x + y;
-    end
+class gyatt{
+    int x;
+    bool z;
+    int y[200][24][44][221];
+    test()
+    {
+        x := 10;
+    };
+    func int hello(int x) {
+        int y:=x + 5;
+    }
 };
 
-int x;
-int y[10];
-func void <3() begin 
-    for (i := 0; i<10; i:=1) {
-    Print(i);
-}
+int x:=5;
+string s;
+bool x := true;
 
-    Print(x);
-    obj.a := 5;
-    Print(result);
-end
+int a[2][3][5][7];
+func int hello(bool x) {
+    a[4] :=x;
+}
+func void<3() skibidi
+    int a[]:= x;
+    TypeOf(x);
+    int x:= 5/4;
+    for(i:=1;i<=20;--i)
+    begin
+        a[5]:=20;
+    end
+    for(i:=5;i<10;i++)
+    begin
+        int a;
+    end
+    while(x<50)
+    begin
+        int t:=20;
+        stop;
+    end
+    gyatt w;
+    w.hello();
+rizz
