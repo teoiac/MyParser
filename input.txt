@@ -38,5 +38,24 @@ func void<3() skibidi
         stop;
     end
     gyatt w;
+    w.x;
     w.hello();
+    if(x>10)
+    {
+        if(y!=x)
+            {
+                y:=x;
+            }
+        else
+        {
+            while(z!=0)
+            begin
+                z--;
+            end
+        }
+    }
+    else
+    {
+        x:=15;
+    }
 rizz
