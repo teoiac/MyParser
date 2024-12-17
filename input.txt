@@ -21,6 +21,7 @@ func int hello(bool x) {
 }
 func void<3() skibidi
     int a[]:= x;
+    string gigachad:="chill guy";
     TypeOf(x);
     int x:= 5/4;
     for(i:=1;i<=20;--i)
