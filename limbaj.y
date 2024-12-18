@@ -53,7 +53,7 @@ class_section:
 constructor_declaration :
     ID P_OPEN P_CLOSE A_OPEN statement_list A_CLOSE ';'
     {printf("Constructor OKAY\n");}
-    |ID P_OPEN parameter_list statement_list P_CLOSE ';'
+    |ID P_OPEN parameter_list P_CLOSE A_OPEN statement_list A_CLOSE ';'
     {printf("Constructor OKAY\n");}
     ;
 class_body:
@@ -161,6 +161,8 @@ assignment_statement:
     { printf("Assignment: %s = ...\n", $1); }
     | ID n_dimensional_array ASSIGN expression ';'
     { printf("Array assignment: %s[...] = ...\n", $1); }
+    | ID ASSIGN method_call
+    {printf("Assign method call - object\n");}
     ;
 
 object_assignment:
