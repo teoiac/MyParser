@@ -1,11 +1,17 @@
 %{
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <iostream>
+#include <string>
+#include <vector>
+#include "symtable.h"
 extern int yylex();
 extern int yylineno;
 void yyerror(const char *s);
 
+SymTable* global_symtable = new SymTable("global");
+SymTable* current_symtable = global_symtable;
+
+//pentru duplicate: 
+void handleDuplicates(const string& id);
 %}
 
 %union {
@@ -14,6 +20,7 @@ void yyerror(const char *s);
     float floater;
     char character;
     int boolean;
+    vector<pair<string,string>* paramList;
 }
 
 %token <string> TYPE ID STRINGVAL
@@ -43,11 +50,32 @@ void yyerror(const char *s);
 
 program:
     class_section global_var_section function_section entry_point
+    {
+        global_symtable->printTableToFile("symbol_tables.txt");
+        delete global_symtable; // curata memoria
+    }
     ;
 
 class_section:
     class_section CLASS ID A_OPEN class_body A_CLOSE ';'
-    { printf("Class declared: %s\n", $3); }
+    { 
+        SymTable* classScope = new SymTable($3, current_symtable);
+        current_symtable = classScope;
+
+        try{
+            current_symtable->addClass($3);
+        } catch (const runtime_error&error){
+            yyerror(error.what());
+        }
+    }
+    class_body A_CLOSE ';'
+    {
+        current_symtable ->printTableToFile("symbol_tables.txt");
+         SymTable* oldScope = current_symtable;
+        current_symtable = current_symtable->getParent();
+        delete oldScope;
+        printf("Class %s processed\n", $3);
+    }
     | /* empty */
     ;
 constructor_declaration :
@@ -68,7 +96,15 @@ class_member:
 
 class_var_declaration:
     TYPE ID ';'
-    { printf("Class variable declared: %s\n", $2); }
+    { 
+        try{
+            current_symtable->addVar($1, $2);
+        } catch (const runtime_error& error){
+            yyeror(error.what());
+        }
+        free($1);
+        free($2);
+        printf("Class variable declared: %s\n", $2); }
     | ARRAY TYPE ID n_dimensional_array ';'
     { printf("Class array declared\n"); }
     | TYPE assignment_statement
@@ -93,19 +129,63 @@ n_dimensional_array:
     ;
 var_declaration:
     TYPE ID ';'
-    { printf("Global variable declared: %s\n", $2); }
+    {   try{
+        current_symtable->addVar($1, $2);
+        } catch (const runtime_error& error)
+        {
+            yyeror(error.what());
+        }
+            free($1);
+            free($2);  
+        printf("Global variable declared: %s\n", $2); }
     
     | ARRAY TYPE ID n_dimensional_array ';'
-    { printf("Global array declared\n"); }
+    { try{
+        current_symtable->addVar($1, $2);
+        } catch (const runtime_error& error)
+        {
+            yyeror(error.what());
+        }
+            free($1);
+            free($2);  
+        
+        printf("Global array declared\n"); 
+    
+    }
     
     | ID ID ';'  // For class object declarations
-    { printf("Class object declared: %s -> %s\n", $1, $2); }
+    { try{
+        current_symtable->addVar($1, $2);
+        } catch (const runtime_error& error)
+        {
+            yyeror(error.what());
+        }
+            free($1);
+            free($2);  
+        printf("Class object declared: %s -> %s\n", $1, $2); }
 
     | ID assignment_statement
-    { printf("Class object declared and assigned\n"); }
+    { 
+        try{
+        current_symtable->addVar($1, $2);
+        } catch (const runtime_error& error)
+        {
+            yyeror(error.what());
+        }
+            free($1);
+            free($2);  
+        printf("Class object declared and assigned\n"); }
     
     | TYPE assignment_statement
-    { printf("Variable declared and assigned\n"); }
+    { try{
+        current_symtable->addVar($1, $2);
+        } catch (const runtime_error& error)
+        {
+            yyeror(error.what());
+        }
+            free($1);
+            free($2);  
+        printf("Variable declared and assigned\n"); }
     ;
 
 
@@ -116,7 +196,12 @@ function_section:
 
 function_declaration:
     FUNC TYPE ID P_OPEN parameter_list P_CLOSE A_OPEN statement_list A_CLOSE
-    { printf("Function declared: %s\n", $3); }
+    { 
+        SymTable* funcScope = new SymTable($3, current_symtable);
+        current_symtable = funcScope;
+        current_symtable = current_symtable->getParent();
+        delete funcScope;
+    }
     ;
 
 parameter_list:
@@ -188,10 +273,30 @@ argument_list:
     ;
 
 if_statement:
-    IF P_OPEN boolean_expression P_CLOSE A_OPEN statement_list A_CLOSE
-    { printf("If condition executed\n"); }
-    | IF P_OPEN boolean_expression P_CLOSE A_OPEN statement_list A_CLOSE ELSE A_OPEN statement_list A_CLOSE
-    { printf("If-Else condition executed\n"); }
+    IF P_OPEN boolean_expression P_CLOSE A_OPEN 
+    { 
+        SymTable *ifScope = new SymTAble("if", current_symtable);
+        current_symtable = ifScope;
+    }
+    statement_list A_CLOSE
+    {
+        current_symtable->printTableToFile("symbol_tables.txt");
+        SymTable* oldScope = current_symtable;
+        current_symtable = current_symtable -> getParent();
+        delete oldScope;
+        printf("If condition executed\n"); }
+    | IF P_OPEN boolean_expression P_CLOSE A_OPEN statement_list A_CLOSE ELSE A_OPEN 
+    { SymTable *ifelseScope = new SymTAble("ifelse", current_symtable);
+        current_symtable = ifElseScope;
+    }
+    statement_list A_CLOSE
+    {
+        current_symtable->printTableToFile("symbol_tables.txt");
+        SymTable* oldScope = current_symtable;
+        current_symtable = current_symtable->getParent();
+        delete oldScope;
+        printf("If-Else condition executed\n");
+    }
     ;
 //un fel de break pt loop
 stop_statement:
@@ -200,8 +305,17 @@ stop_statement:
     ;
 
 while_statement:
-    WHILE P_OPEN boolean_expression P_CLOSE BGIN statement_list END
-    { printf("While loop executed\n"); }
+    WHILE P_OPEN boolean_expression P_CLOSE BGIN 
+    { SymTAble * = new SymTable("while", current_symtable);
+    current_symtable = whileScope;
+    }
+    statement_list END
+    {
+   current_symtable->printTableToFile("symbol_tables.txt");
+        SymTable* oldScope = current_symtable;
+        current_symtable = current_symtable->getParent();
+        delete oldScope;
+        printf("While loop executed\n"); }
     ;
 prefix_incr_decre:
     ID INCREMENT
@@ -214,11 +328,26 @@ postfix_incr_decre:
 
 for_statement:
     FOR P_OPEN assignment_statement boolean_expression ';' prefix_incr_decre P_CLOSE BGIN statement_list END
-    { printf("For loop executed\n"); }
+    {   
+        SymTable* forScope = new SymTable("for", current_symtable);
+        current_symtable = forScope;
+        current_symtable = current_symtable->getParent();
+        delete forScope;
+        printf("For loop executed\n"); }
     | FOR P_OPEN assignment_statement boolean_expression ';' postfix_incr_decre P_CLOSE BGIN statement_list END
-    { printf("For loop executed\n"); }
+    { 
+        SymTable* forScope = new SymTable("for", current_symtable);
+        current_symtable = forScope;
+        current_symtable = current_symtable->getParent();
+        delete forScope;
+        printf("For loop executed\n"); }
     | FOR P_OPEN assignment_statement boolean_expression ';' ID ASSIGN expression  P_CLOSE BGIN statement_list END
-    { printf("For loop executed\n"); }
+    { 
+        SymTable* forScope = new SymTable("for", current_symtable);
+        current_symtable = forScope;
+        current_symtable = current_symtable->getParent();
+        delete forScope;
+        printf("For loop executed\n"); }
    
     ;
 
@@ -276,6 +405,10 @@ boolean_expression  : expression GT expression
 
 void yyerror(const char *s) {
     fprintf(stderr, "Error at line %d: %s\n", yylineno, s);
+}
+
+void handleDuplicates(const string& id){
+    yyeror(("Duplicate identifier : " + id).c_str());
 }
 
 int main() {
