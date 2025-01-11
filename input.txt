@@ -1,5 +1,5 @@
 class exemplu{
-    int x;
+    float w;
     bool z;
     array int y[200][24][44][233];
     test()
@@ -16,6 +16,19 @@ class exemplu{
         float z:=((50+2)%10)/25.5;
     }
 };
+
+class exemplu2
+{
+    float w;
+    bool z;
+};
+
+class exemplu3
+{
+    float a;
+    bool b;
+};
+
 
 int x:=5;
 string s;
@@ -44,7 +57,7 @@ func void<3() begin
         int t:=20;
         stop;
     end
-    exemplu w;
+    exemplu w := 20;
     w.x;
     x:= (2+3)*5;
     q:= w.hello();
