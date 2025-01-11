@@ -5,8 +5,9 @@ extern int yylex();
 extern int yylineno;
 void yyerror(const char *s);
 
-SymTable* currentSymTable = nullptr; // Pointer to the current symbol table
-SymTable* globalSymTable = nullptr;  // Pointer to the global symbol table
+// Pointer to the current symbol table
+SymTable* globalSymTable = new SymTable("global"); 
+SymTable* currentSymTable = globalSymTable;  // Pointer to the global symbol table
 %}
 
 %union {
@@ -44,23 +45,32 @@ SymTable* globalSymTable = nullptr;  // Pointer to the global symbol table
 
 program:
     class_section global_var_section function_section entry_point
+    {
+         globalSymTable->printTableToFile("symbol_table.txt");
+    }
     ;
 
 class_section:
-    class_section CLASS ID A_OPEN class_body A_CLOSE ';'
+    class_section CLASS ID A_OPEN 
     {
         if (globalSymTable->existsVar($3)) {
             yyerror("Class already declared in the global scope");
         } else {
             // Add class to global scope
-            globalSymTable->addVar("class", $3, "");
-
+            globalSymTable->addClass($3);
             // Create a new symbol table for the class scope
             SymTable* classSymTable = new SymTable($3, globalSymTable);
             currentSymTable = classSymTable; // Switch to class scope
-
             printf("Class declared: %s\n", $3);
         }
+    }
+    class_body A_CLOSE ';'
+    {
+        currentSymTable ->printTableToFile("symbol_table.txt");
+        SymTable* oldScope = currentSymTable;
+        currentSymTable = currentSymTable->parent;
+        std::cout<< "PARINTE: "<< currentSymTable->name<<std::endl;
+        delete oldScope;
     }
     | /* empty */
     ;
@@ -82,7 +92,12 @@ class_member:
 
 class_var_declaration:
     TYPE ID ';'
-    { printf("Class variable declared: %s\n", $2); }
+    {  if (currentSymTable->existsVar($2)) {
+            yyerror("Variable already declared in this scope");
+        } else {
+            currentSymTable->addVar($1, $2, "");
+             printf("Class variable declared: %s\n", $2); }
+    }
     | ARRAY TYPE ID n_dimensional_array ';'
     { printf("Class array declared\n"); }
     | TYPE assignment_statement
@@ -369,7 +384,7 @@ int main() {
     globalSymTable = new SymTable("global", nullptr); // Initialize the global symbol table
     currentSymTable = globalSymTable;       
     if (yyparse() == 0) {
-        globalSymTable->printTableToFile("symbol_table.txt");
+       // globalSymTable->printTableToFile("symbol_table.txt");
     }
     delete globalSymTable; // Cleanup
     return 0;
