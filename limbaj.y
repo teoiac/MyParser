@@ -2,11 +2,12 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <utility>
 #include "symtable.h"
 extern int yylex();
 extern int yylineno;
 void yyerror(const char *s);
-
+using namespace std;
 SymTable* global_symtable = new SymTable("global");
 SymTable* current_symtable = global_symtable;
 
@@ -15,15 +16,15 @@ void handleDuplicates(const string& id);
 %}
 
 %union {
-    char* string;
+    char* stringer;
     int integer;
+    string id;
     float floater;
     char character;
     int boolean;
-    vector<pair<string,string>* paramList;
+    vector<pair<string,string>>* paramList;
 }
-
-%token <string> TYPE ID STRINGVAL
+%token <stringer> TYPE ID STRINGVAL
 %token <character> CHARVAL
 %token <integer> INTVAL BOOLVAL
 %token <floater> FLOATVAL
@@ -31,7 +32,6 @@ void handleDuplicates(const string& id);
 %token ASSIGN EQL NEQ  MINUS PLUS MULT DIV MOD
 %token P_OPEN P_CLOSE A_OPEN A_CLOSE B_OPEN B_CLOSE
 %token INCREMENT DECREMENT GT GTE LT LTE AND OR NOT DOT
-
 %start program
 
          
@@ -74,7 +74,7 @@ class_section:
          SymTable* oldScope = current_symtable;
         current_symtable = current_symtable->getParent();
         delete oldScope;
-        printf("Class %s processed\n", $3);
+        printf("Class %s processed\n", $3.c_str());
     }
     | /* empty */
     ;
@@ -100,7 +100,7 @@ class_var_declaration:
         try{
             current_symtable->addVar($1, $2);
         } catch (const runtime_error& error){
-            yyeror(error.what());
+            yyerror(error.what());
         }
         free($1);
         free($2);
@@ -133,7 +133,7 @@ var_declaration:
         current_symtable->addVar($1, $2);
         } catch (const runtime_error& error)
         {
-            yyeror(error.what());
+            yyerror(error.what());
         }
             free($1);
             free($2);  
@@ -141,13 +141,13 @@ var_declaration:
     
     | ARRAY TYPE ID n_dimensional_array ';'
     { try{
-        current_symtable->addVar($1, $2);
+        current_symtable->addArray($2, $3);
         } catch (const runtime_error& error)
         {
-            yyeror(error.what());
+            yyerror(error.what());
         }
-            free($1);
-            free($2);  
+            free($2);
+            free($3);  
         
         printf("Global array declared\n"); 
     
@@ -158,30 +158,30 @@ var_declaration:
         current_symtable->addVar($1, $2);
         } catch (const runtime_error& error)
         {
-            yyeror(error.what());
+            yyerror(error.what());
         }
             free($1);
             free($2);  
         printf("Class object declared: %s -> %s\n", $1, $2); }
 
-    | ID assignment_statement
+    | ID ID assignment_statement
     { 
         try{
         current_symtable->addVar($1, $2);
         } catch (const runtime_error& error)
         {
-            yyeror(error.what());
+            yyerror(error.what());
         }
             free($1);
             free($2);  
         printf("Class object declared and assigned\n"); }
     
-    | TYPE assignment_statement
+    | TYPE ID assignment_statement
     { try{
         current_symtable->addVar($1, $2);
         } catch (const runtime_error& error)
         {
-            yyeror(error.what());
+            yyerror(error.what());
         }
             free($1);
             free($2);  
@@ -206,7 +206,15 @@ function_declaration:
 
 parameter_list:
     TYPE ID
+    {
+        // Initialize the vector if it’s not already done
+        $$ = new vector<pair<string, string>>();
+        $$->emplace_back($1, $2); // Add the first parameter
+    }
     | parameter_list ',' TYPE ID
+    {
+        $$.emplace_back($3, $4); // Add the new parameter to the existing vector
+    }
     ;
 
 //main function
@@ -408,7 +416,7 @@ void yyerror(const char *s) {
 }
 
 void handleDuplicates(const string& id){
-    yyeror(("Duplicate identifier : " + id).c_str());
+    yyerror(("Duplicate identifier : " + id).c_str());
 }
 
 int main() {
