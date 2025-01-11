@@ -1,29 +1,32 @@
 %{
 #include <iostream>
 #include <string>
-#include <vector>
 #include <utility>
 #include "symtable.h"
+
 extern int yylex();
 extern int yylineno;
 void yyerror(const char *s);
-using namespace std;
 SymTable* global_symtable = new SymTable("global");
 SymTable* current_symtable = global_symtable;
 
 //pentru duplicate: 
 void handleDuplicates(const string& id);
+#include <vector>
 %}
 
 %union {
     char* stringer;
+    char* id;
+    char* type;
     int integer;
-    string id;
     float floater;
     char character;
     int boolean;
-    vector<pair<string,string>>* paramList;
+    std::vector<std::pair<std::string,std::string>>* paramList;
 }
+
+%type <paramList> parameter_list
 %token <stringer> TYPE ID STRINGVAL
 %token <character> CHARVAL
 %token <integer> INTVAL BOOLVAL
@@ -209,11 +212,12 @@ parameter_list:
     {
         // Initialize the vector if it’s not already done
         $$ = new vector<pair<string, string>>();
-        $$->emplace_back($1, $2); // Add the first parameter
+        $$->emplace_back(string($1), string($2)); // Add the first parameter
     }
     | parameter_list ',' TYPE ID
     {
-        $$.emplace_back($3, $4); // Add the new parameter to the existing vector
+        $$.emplace_back(string($3), string($4)); // Add the new parameter to the existing vecto $1->emplace_back(std::string($3), std::string($4)); // Add the new parameter
+        $$ = $1; // Pass the modified vector
     }
     ;
 
@@ -294,7 +298,7 @@ if_statement:
         delete oldScope;
         printf("If condition executed\n"); }
     | IF P_OPEN boolean_expression P_CLOSE A_OPEN statement_list A_CLOSE ELSE A_OPEN 
-    { SymTable *ifelseScope = new SymTAble("ifelse", current_symtable);
+    { SymTable *ifelseScope = new SymTable("ifelse", current_symtable);
         current_symtable = ifElseScope;
     }
     statement_list A_CLOSE
