@@ -8,20 +8,27 @@ void SymTable::addVar(const string& type, const string& name) {
     ids[name] = IdInfo("var", type, name);
 }
 
-void SymTable::addFunc(const string& returnType, const string& name, const ParamList& params) {
+void SymTable::addFunc(const string& returnType, const string& name, vector<pair<string,string>>* paramList) {
     if (existsId(name)) {
         throw runtime_error("Duplicate identifier: " + name);
     }
     IdInfo func("func", returnType, name);
-    func.params = params;
     ids[name] = func;
 }
 
+void SymTable::addArray(const string& type, const string& name)
+{
+    if(existsId(name))
+    {
+        throw runtime_error("Duplicate identifier: " + name);
+    }
+    ids[name] = IdInfo("array", type, name);
+}
 void SymTable::addClass(const string& name) {
     if (existsId(name)) {
         throw runtime_error("Duplicate identifier: " + name);
     }
-    ids[name] = IdInfo("class", name, name); // Assuming class name is its type
+    ids[name] = IdInfo("class", name, name); 
 }
 
 bool SymTable::existsId(const string& var) {
@@ -31,17 +38,6 @@ bool SymTable::existsId(const string& var) {
 void SymTable::printVars(ostream& out) {
     for (const auto& v : ids) {
         out << "name: " << v.first << ", type: " << v.second.type;
-        if (v.second.idType == "func") {
-            out << ", params: (";
-            for (size_t i = 0; i < v.second.params.params.size(); ++i) {
-                out << v.second.params.params[i].first << " " << v.second.params.params[i].second;
-                if (i < v.second.params.params.size() - 1) {
-                    out << ", ";
-                }
-            }
-            out << ")";
-        }
-        out << endl;
     }
 }
 
