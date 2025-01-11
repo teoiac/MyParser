@@ -1,54 +1,83 @@
-#include "symtable.h"
-#include <fstream>
-using namespace std;
-void SymTable::addVar(const string& type, const string& name) {
-    if (existsId(name)) {
-        throw runtime_error("Duplicate identifier: " + name);
-    }
-    ids[name] = IdInfo("var", type, name);
+#include "SymTable.h"
+
+SymTable::SymTable(const std::string& name, SymTable* parent)
+    : name(name), parent(parent) {}
+
+void SymTable::addVar(const std::string& type, const std::string& name, const std::string& value) {
+    vars.push_back({type, name, value});
 }
 
-void SymTable::addFunc(const string& returnType, const string& name, vector<pair<string,string>>* paramList) {
-    if (existsId(name)) {
-        throw runtime_error("Duplicate identifier: " + name);
-    }
-    IdInfo func("func", returnType, name);
-    ids[name] = func;
+void SymTable::addFunction(const FunctionInfo& funcInfo) {
+    functions.push_back(funcInfo);
 }
 
-void SymTable::addArray(const string& type, const string& name)
-{
-    if(existsId(name))
-    {
-        throw runtime_error("Duplicate identifier: " + name);
-    }
-    ids[name] = IdInfo("array", type, name);
-}
-void SymTable::addClass(const string& name) {
-    if (existsId(name)) {
-        throw runtime_error("Duplicate identifier: " + name);
-    }
-    ids[name] = IdInfo("class", name, name); 
+void SymTable::addClass(std::string name) {
+    classes.push_back(name);
 }
 
-bool SymTable::existsId(const string& var) {
-    return ids.find(var) != ids.end();
+bool SymTable::existsVar(const std::string& name) const {
+    for (const auto& var : vars) {
+        if (var.name == name) return true;
+    }
+    return parent ? parent->existsVar(name) : false;
 }
 
-void SymTable::printVars(ostream& out) {
-    for (const auto& v : ids) {
-        out << "name: " << v.first << ", type: " << v.second.type;
+std::string SymTable::getVarType(const std::string& name) const {
+    for (const auto& var : vars) {
+        if (var.name == name) return var.type;
     }
+    return parent ? parent->getVarType(name) : "undefined";
 }
 
-void SymTable::printTableToFile(const string& filename) {
-    ofstream outFile(filename, ios::app); // append to file
-    if (outFile.is_open()) {
-        outFile << "Symbol Table: " << name << endl;
-        printVars(outFile);
-        outFile << endl;
-        outFile.close();
-    } else {
-        cerr << "Unable to open file: " << filename << endl;
+std::string SymTable::getVarValue(const std::string& name) const {
+    for (const auto& var : vars) {
+        if (var.name == name) return var.value;
     }
+    return parent ? parent->getVarValue(name) : "undefined";
 }
+
+void SymTable::printTableToFile(const char* filename) const {
+    // Open the file for writing
+    std::ofstream outputFile(filename);
+
+    // Check if the file is opened successfully
+    if (!outputFile.is_open()) {
+        std::cerr << "Error: Unable to open file " << filename << " for writing.\n";
+        return;
+    }
+
+    // Indentation to format the symbol table nicely
+    std::string indentation(indent, ' ');
+
+    // Print scope name
+    outputFile << indentation << "miau" <<"\n";
+    outputFile << indentation << "Scope: " << name << "\n";
+
+    // Print variables
+    outputFile << indentation << "Variables:\n";
+    for (const auto& var : vars) {
+        outputFile << indentation << "  - " << var.name << " (Type: " << var.type << ", Value: " << var.value << ")\n";
+    }
+
+    // Print functions
+    outputFile << indentation << "Functions:\n";
+    for (const auto& func : functions) {
+        outputFile << indentation << "  - " << func.name << " (Return Type: " << func.returnType << ")\n";
+    }
+
+    // Print classes
+    outputFile << indentation << "Classes:\n";
+    for (const auto& className : classes) {
+        outputFile << indentation << "  - " << className << "\n";
+    }
+
+    // Print parent scope (if any)
+    if (parent) {
+        outputFile << indentation << "Parent Scope: " << parent->name << "\n";
+    }
+
+    // Close the file after writing
+    outputFile.close();
+}
+
+SymTable::~SymTable() {}
