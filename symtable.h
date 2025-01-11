@@ -1,40 +1,55 @@
 #ifndef SYMTABLE_H
 #define SYMTABLE_H
+
 #include <iostream>
-#include <map>
-#include <string>
 #include <vector>
-#include <stdexcept> // for exception handling
+#include <string>
+#include <map>
+#include <fstream>
 
-using namespace std;
+struct ParamInfo {
+    std::string type;
+    std::string name;
+};
+
+struct FunctionInfo {
+    std::string name;
+    std::string returnType;
+    std::string scope;
+    bool isMethod;
+    std::string className;
+    std::vector<ParamInfo> parameters;
+};
 
 
-class IdInfo {
-public:
-    string idType; // "var", "func", "class"
-    string type;
-    string name;
-    vector<pair<string,string>>* paramList;
-    IdInfo() {}
-    IdInfo(const string& idType, const string& type, const string& name) : idType(idType), type(type), name(name) {}
+
+struct IdInfo {
+    std::string type;
+    std::string name;
+    std::string value;
 };
 
 class SymTable {
-    map<string, IdInfo> ids;
-    string name;
-    SymTable* parent; // pointer la scop
+    std::vector<IdInfo> vars;
+    std::vector<FunctionInfo> functions;
+    std::vector<std::string> classes;
+   
 public:
-    SymTable(const string& name, SymTable* parent = nullptr) : name(name), parent(parent) {}
-    bool existsId(const string& s);
-    void addVar(const string& type, const string& name);
-    void addFunc(const string& returnType, const string& name, vector<pair<string,string>>* paramList);
-    void addArray(const string& type, const string& name);
-    void addClass(const string& name);
-    void printVars(ostream& out); //Added ostream for flexibility
-    void printTableToFile(const string& filename);
-    ~SymTable() {} 
-    SymTable* getParent() const { return parent; } // getter parinte
+    std::string name;
+    SymTable* parent;
+    int indent = 4;
+    SymTable(const std::string& name, SymTable* parent = nullptr);
+
+    void addVar(const std::string& type, const std::string& name, const std::string& value = "");
+    void addFunction(const FunctionInfo& funcInfo);
+    void addClass(std::string className);
+
+    bool existsVar(const std::string& name) const;
+    std::string getVarType(const std::string& name) const;
+    std::string getVarValue(const std::string& name) const;
+
+    void printTableToFile(const char* outputFile) const;
+
+    ~SymTable();
 };
-
-#endif
-
+#endif //SYMTABLE_H
