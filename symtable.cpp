@@ -1,10 +1,21 @@
-#include "SymTable.h"
+#include "Symtable.h"
 
 SymTable::SymTable(const std::string& name, SymTable* parent)
     : name(name), parent(parent) {}
 
 void SymTable::addVar(const std::string& type, const std::string& name, const std::string& value) {
     vars.push_back({type, name, value});
+}
+
+void SymTable::addValue(string name, string value)
+{
+    for(auto& var : vars)
+    {
+        if(var.name==name)
+        {
+            var.value=value;
+        }
+    }
 }
 
 void SymTable::addFunction(const FunctionInfo& funcInfo) {
@@ -14,6 +25,7 @@ void SymTable::addFunction(const FunctionInfo& funcInfo) {
 void SymTable::addClass(std::string name) {
     classes.push_back(name);
 }
+
 
 bool SymTable::existsVar(const std::string& name) const {
     for (const auto& var : vars) {
@@ -36,48 +48,45 @@ std::string SymTable::getVarValue(const std::string& name) const {
     return parent ? parent->getVarValue(name) : "undefined";
 }
 
-void SymTable::printTableToFile(const char* filename) const {
-    // Open the file for writing
-    std::ofstream outputFile(filename);
+void SymTable::printTableToFile(const char* filename, bool append) const {
+    std::ofstream outputFile;
+    if (append) {
+        outputFile.open(filename, std::ios::app);
+    } else {
+        outputFile.open(filename, std::ios::out);
+    }
 
-    // Check if the file is opened successfully
     if (!outputFile.is_open()) {
         std::cerr << "Error: Unable to open file " << filename << " for writing.\n";
         return;
     }
 
-    // Indentation to format the symbol table nicely
-    std::string indentation(indent, ' ');
-
-    // Print scope name
-    outputFile << indentation << "miau" <<"\n";
-    outputFile << indentation << "Scope: " << name << "\n";
+    outputFile << "Scope: " << name << "\n";
 
     // Print variables
-    outputFile << indentation << "Variables:\n";
+    outputFile << "Variables:\n";
     for (const auto& var : vars) {
-        outputFile << indentation << "  - " << var.name << " (Type: " << var.type << ", Value: " << var.value << ")\n";
+        outputFile << "  - " << var.name << " (Type: " << var.type 
+                   << ", Value: " << (var.value.empty() ? "N/A" : var.value) << ")\n";
     }
 
     // Print functions
-    outputFile << indentation << "Functions:\n";
+    outputFile << "Functions:\n";
     for (const auto& func : functions) {
-        outputFile << indentation << "  - " << func.name << " (Return Type: " << func.returnType << ")\n";
+        outputFile << "  - " << func.name << " (Return Type: " << func.returnType 
+                   << ", Parameters: ";
+        for (const auto& param : func.parameters) {
+            outputFile << param.type << " " << param.name << ", ";
+        }
+        outputFile << ")\n";
     }
 
-    // Print classes
-    outputFile << indentation << "Classes:\n";
-    for (const auto& className : classes) {
-        outputFile << indentation << "  - " << className << "\n";
-    }
-
-    // Print parent scope (if any)
+    // Print nested scopes
     if (parent) {
-        outputFile << indentation << "Parent Scope: " << parent->name << "\n";
+        parent->printTableToFile(filename, true);
     }
 
-    // Close the file after writing
+    outputFile << "\n";
     outputFile.close();
 }
-
 SymTable::~SymTable() {}
