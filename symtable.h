@@ -7,48 +7,55 @@
 #include <map>
 #include <fstream>
 
+using namespace std;
+
 struct ParamInfo {
-    std::string type;
-    std::string name;
+    string type;
+    string name;
+};
+
+struct StatementInfo {
+    string type;
+    string name;
+    bool isVariable = false;
 };
 
 struct FunctionInfo {
-    std::string name;
-    std::string returnType;
-    std::string scope;
+    string name;
+    string returnType;
+    string scope;
     bool isMethod;
-    std::string className;
-    std::vector<ParamInfo> parameters;
+    string className;
+    vector<ParamInfo> parameters;
 };
 
-
-
-struct IdInfo {
-    std::string type;
-    std::string name;
-    std::string value;
+struct VarInfo {
+    string type;
+    string name;
+    string value;
 };
 
-class SymTable {
-    std::vector<IdInfo> vars;
-    std::vector<FunctionInfo> functions;
-    std::vector<std::string> classes;
-   
+class SymTable {  
 public:
-    std::string name;
+    vector<VarInfo> vars;
+    vector<FunctionInfo> functions;
+    vector<std::string> classes;
+    string name;
     SymTable* parent;
     int indent = 4;
     SymTable(const std::string& name, SymTable* parent = nullptr);
 
-    void addVar(const std::string& type, const std::string& name, const std::string& value = "");
+    void addVar(const string& type, const string& name, const string& value = "");
+    void addValue(string name, string value);
     void addFunction(const FunctionInfo& funcInfo);
-    void addClass(std::string className);
+    void addClass(string className);
 
-    bool existsVar(const std::string& name) const;
-    std::string getVarType(const std::string& name) const;
-    std::string getVarValue(const std::string& name) const;
+    bool existsVar(const string& name) const;
+    string getVarType(const string& name) const;
+    string getVarValue(const string& name) const;
+    SymTable* getParent() const { return parent; }
 
-    void printTableToFile(const char* outputFile) const;
+    void printTableToFile(const char* outputFile, bool append) const;
 
     ~SymTable();
 };
