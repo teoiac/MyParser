@@ -1,6 +1,11 @@
 %{
 #include <iostream>
-#include "SymTable.h"
+#include <vector>
+#include <string>
+#include "Symtable.h"
+
+using namespace std;
+
 extern int yylex();
 extern int yylineno;
 void yyerror(const char *s);
@@ -8,6 +13,38 @@ void yyerror(const char *s);
 // Pointer to the current symbol table
 SymTable* globalSymTable = new SymTable("global"); 
 SymTable* currentSymTable = globalSymTable;  // Pointer to the global symbol table
+
+std::vector<ParamInfo> globalParamList;    // Stores all function parameters
+std::vector<StatementInfo> globalStatements; // Stores statements
+
+
+bool isInteger(const string& str) {
+    try {
+        stoi(str);
+        return true;
+    } catch (const invalid_argument& ia) {
+        return false;
+    } catch (const out_of_range& oor) {
+        return false;
+    }
+}
+
+bool isFloat(const string& str) {
+    try {
+        stof(str);
+        return true;
+    } catch (const invalid_argument& ia) {
+        return false;
+    } catch (const out_of_range& oor) {
+        return false;
+    }
+}
+
+bool isBoolean(const string& str) {
+    return (str == "true" || str == "false");
+}
+
+
 %}
 
 %union {
@@ -16,7 +53,9 @@ SymTable* currentSymTable = globalSymTable;  // Pointer to the global symbol tab
     float floater;
     char character;
     int boolean;
+    void* pointer; // Generic pointer for custom structures
 }
+
 
 %token <string> TYPE ID STRINGVAL
 %token <character> CHARVAL
@@ -27,9 +66,10 @@ SymTable* currentSymTable = globalSymTable;  // Pointer to the global symbol tab
 %token P_OPEN P_CLOSE A_OPEN A_CLOSE B_OPEN B_CLOSE
 %token INCREMENT DECREMENT GT GTE LT LTE AND OR NOT DOT
 
+%type <param_list> parameter_list
+
 %start program
 
-         
 
 %left OR
 %left AND
@@ -46,33 +86,28 @@ SymTable* currentSymTable = globalSymTable;  // Pointer to the global symbol tab
 program:
     class_section global_var_section function_section entry_point
     {
-         globalSymTable->printTableToFile("symbol_table.txt");
+         globalSymTable->printTableToFile("complete_symbol_table.txt", true);
     }
     ;
 
 class_section:
-    class_section CLASS ID A_OPEN 
+    CLASS ID A_OPEN 
     {
-        if (globalSymTable->existsVar($3)) {
-            yyerror("Class already declared in the global scope");
+        if (globalSymTable->existsVar($2)) {
+            yyerror("Class already declared in this scope");
         } else {
-            // Add class to global scope
-            globalSymTable->addClass($3);
-            // Create a new symbol table for the class scope
-            SymTable* classSymTable = new SymTable($3, globalSymTable);
-            currentSymTable = classSymTable; // Switch to class scope
-            printf("Class declared: %s\n", $3);
+            SymTable* classScope = new SymTable($2, globalSymTable);
+            currentSymTable = classScope;
         }
     }
     class_body A_CLOSE ';'
     {
-        currentSymTable ->printTableToFile("symbol_table.txt");
+        currentSymTable->printTableToFile("symbol_table.txt", true);
         SymTable* oldScope = currentSymTable;
-        currentSymTable = currentSymTable->parent;
-        std::cout<< "PARINTE: "<< currentSymTable->name<<std::endl;
+        currentSymTable = currentSymTable->getParent();
         delete oldScope;
     }
-    | /* empty */
+    |
     ;
 constructor_declaration :
     ID P_OPEN P_CLOSE A_OPEN statement_list A_CLOSE ';'
@@ -82,7 +117,8 @@ constructor_declaration :
     ;
 class_body:
     class_body class_member
-    |class_member
+    | class_member
+    | /* empty */  // Permite corp gol
     ;
 class_member:
     class_var_declaration
@@ -99,7 +135,15 @@ class_var_declaration:
              printf("Class variable declared: %s\n", $2); }
     }
     | ARRAY TYPE ID n_dimensional_array ';'
-    { printf("Class array declared\n"); }
+    { 
+        if(currentSymTable->existsVar($2))
+        {
+            yyerror("Variable already declared in this scope");
+        } else {
+            currentSymTable->addVar("array", $3, "");
+             printf("Class array declared\n"); }
+        }
+       
     | TYPE assignment_statement
     {
         printf("Class variable declared and assigned\n");
@@ -120,17 +164,24 @@ n_dimensional_array:
     |n_dimensional_array B_OPEN B_CLOSE
     |B_OPEN B_CLOSE
     ;
+
+
+
 var_declaration:
     TYPE ID ';'
     { 
-        if (currentSymTable->existsVar($2)) {
-            yyerror("Variable already declared in this scope");
-        } else {
+        // if (currentSymTable->existsVar($2)) {
+        //     yyerror("Variable already declared in this scope");
+        // } else {
             currentSymTable->addVar($1, $2, "");
             printf("Global variable declared: %s\n", $2);
-        }
+        //}
     }
-    
+    /* | TYPE ID ASSIGN expression ';'
+    {
+        currentSymTable->addVar($1, $2, $4);
+        printf("Global variable declared: %s with starting value: %d\n", $2, $4);
+    } */
     | ARRAY TYPE ID n_dimensional_array ';'
     { if (currentSymTable->existsVar($3)) {
             yyerror("Array already declared in this scope");
@@ -162,21 +213,41 @@ function_declaration:
         if (currentSymTable->existsVar($3)) {
             yyerror("Function already declared in this scope");
         } else {
-            // Add function to current symbol table
-            FunctionInfo funcInfo = { $3, $2, "GLOBAL", false, "" }; // Set function details
+            // Collect parameters from globalParamList
+            FunctionInfo funcInfo = { $3, $2, currentSymTable->name, false, "", globalParamList };
             currentSymTable->addFunction(funcInfo);
 
-            // Create a new symbol table for the function scope
-            SymTable* functionSymTable = new SymTable($3, currentSymTable);
-            currentSymTable = functionSymTable; // Switch to function scope
+            // Clear globalParamList after usage
+            globalParamList.clear();
 
-            printf("Function declared: %s\n", $3);
+            // Create a new scope for the function
+            SymTable* funcScope = new SymTable($3, currentSymTable);
+            currentSymTable = funcScope;
         }
     }
+    {
+        currentSymTable->printTableToFile("symbol_table.txt", true);
+        SymTable* oldScope = currentSymTable;
+        currentSymTable = currentSymTable->getParent();
+        delete oldScope;
+    }
     ;
+
 parameter_list:
     TYPE ID
+    {
+        ParamInfo param = { $1, $2 };       // Create parameter
+        globalParamList.push_back(param);  // Add parameter to global list
+    }
     | parameter_list ',' TYPE ID
+    {
+        ParamInfo param = { $3, $4 };      // Create parameter
+        globalParamList.push_back(param);  // Add parameter to global list
+    }
+    | /* empty */
+    {
+        // Do nothing for empty parameter list
+    }
     ;
 
 //main function
@@ -190,7 +261,14 @@ entry_point:
 
 statement_list:
     statement_list statement
+    {
+        // Add statements to globalStatements if needed
+        globalStatements.push_back(StatementInfo{});
+    }
     | statement
+    {
+        globalStatements.push_back(StatementInfo{});
+    }
     ;
 
 statement:
@@ -212,8 +290,11 @@ statement:
 
 
 assignment_statement:
-    ID ASSIGN expression ';'
-    { printf("Assignment: %s = ...\n", $1); }
+    ID ASSIGN STRINGVAL ';'
+    {
+        currentSymTable->addValue($1, $3);
+        printf("Assignment: %s = ...\n", $1); 
+    }
     | ID n_dimensional_array ASSIGN expression ';'
     { printf("Array assignment: %s[...] = ...\n", $1); }
     | ID ASSIGN method_call
@@ -245,20 +326,19 @@ argument_list:
 if_statement:
     IF P_OPEN boolean_expression P_CLOSE A_OPEN
     {
-        // Create a new symbol table for the block scope
-        SymTable* ifSymTable = new SymTable("if", currentSymTable);
-        currentSymTable = ifSymTable; // Switch to block scope
+        SymTable* ifScope = new SymTable("if_block", currentSymTable);
+        currentSymTable = ifScope;
     }
     statement_list
     A_CLOSE
     {
-        // Exit block scope
-        currentSymTable = currentSymTable->parent;
-        printf("If condition executed\n");
+        currentSymTable->printTableToFile("symbol_table.txt", true);
+        SymTable* oldScope = currentSymTable;
+        currentSymTable = currentSymTable->getParent();
+        delete oldScope;
     }
-    | IF P_OPEN boolean_expression P_CLOSE A_OPEN statement_list A_CLOSE ELSE A_OPEN statement_list A_CLOSE
-    { printf("If-Else condition executed\n"); }
     ;
+
 //un fel de break pt loop
 stop_statement:
     STOP
@@ -341,6 +421,26 @@ typeof_statement:
     }
     ;
 
+/* statement_typeof: expression {  
+                                cout << "TypeOf value: ";
+                                string resultValue = ast.evaluateTree();
+
+                                // Assuming your evaluateTree() function returns a string representation of the result
+
+                                if (isInteger(resultValue)) {
+                                    cout << "Integer" << endl;
+                                } else if (isFloat(resultValue)) {
+                                    cout << "Float" << endl;
+                                } else if (isBoolean(resultValue)) {
+                                    cout << "Boolean" << endl;
+                                } else {
+                                    cout << "Unknown" << endl;
+                                }
+
+                                ast.printTree();         
+                             } */
+                             ;
+
 // expresii aritmetice
 expression:
      expression PLUS expression
@@ -381,11 +481,19 @@ void yyerror(const char *s) {
 }
 
 int main() {
-    globalSymTable = new SymTable("global", nullptr); // Initialize the global symbol table
-    currentSymTable = globalSymTable;       
     if (yyparse() == 0) {
-       // globalSymTable->printTableToFile("symbol_table.txt");
+        printf("Parsing completed successfully.\n");
+        globalSymTable->printTableToFile("complete_symbol_table.txt", false);
+    } else {
+        printf("Parsing failed.\n");
     }
-    delete globalSymTable; // Cleanup
+
+    // Cleanup symbol tables
+    delete globalSymTable;
+
+    // Clear global lists
+    globalParamList.clear();
+    globalStatements.clear();
+
     return 0;
 }
