@@ -41,9 +41,11 @@ public:
     vector<FunctionInfo> functions;
     vector<std::string> classes;
     string name;
-    SymTable* parent;
+     SymTable* parent;
+    string scope;
+   
     int indent = 4;
-    SymTable(const std::string& name, SymTable* parent = nullptr);
+    SymTable(const std::string& name, SymTable* parent = nullptr, const std::string& scope = "global");
 
     void addVar(const string& type, const string& name, const string& value = "");
     void addValue(string name, string value);
