@@ -1,82 +1,35 @@
-class exemplu{
-    float w;
-    bool z;
-    array int y[200][24][44][233];
-    test()
-    {
-        x := 10;
-    };
-    test(bool y)
-    {
-        z:=y;
-    };
-
-    func int hello(int x) {
-        int y:=x + 5;
-        float z:=((50+2)%10)/25.5;
-    }
-};
-
-class exemplu2
-{
-    float w;
-    bool z;
-};
-
-class exemplu3
-{
-    float a;
-    bool b;
+class exemplu {
+  int a;
+  int b;
+  func int interschimbare(int c, int d) {
+    c := c + d;
+    d := c - d;
+    c := c - d;
+  }
 };
 
 
-int x:=5;
-string s;
-bool x := true;
-array int a[2][3][5][7];
+int y;
+bool z;
 
-func int hello(bool x) {
-    a[4] :=x;
+func int ana(int x, int y) {
+  int z;
+  z := x + y;
+  
 }
-func void<3() begin
-    int a[2][3]:= x;
-    char  a:='a';
-    string mood:="chill";
-    TypeOf(x);
-    int x:= 5/4;
-    for(i:=1;i<=20;--i)
-    begin
-        a[5]:=20;
-    end
-    for(i:=5;i<10;i:=i+2)
-    begin
-        int a;
-    end
-    while(x<50)
-    begin
-        int t:=20;
-        stop;
-    end
-    exemplu w := 20;
-    w.x;
-    x:= (2+3)*5;
-    q:= w.hello();
-    if(x>10)
-    {
-        if(y!=x)
-            {
-                y:=x;
-            }
-        else
-        {
-            while(z!=0)
-            begin
-                z--;
-            end
-        }
-    }
-    else
-    {
-        x:=15;
-    }
+
+func void main() begin
+   if(x==5)
+   {
+    int x;
+    x:=6;
+   }
+   int i;
+   for(i:=1;i<=10;i++)
+   begin
+      x++;
+   end
+  float r;
+  r:=r+x;
 end
+
