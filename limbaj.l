@@ -1,5 +1,6 @@
 %{
-#include <stdio.h>
+#include <iostream>
+#include <vector>
 #include "limbaj.tab.h"
 %}
 
@@ -7,12 +8,12 @@
 %option noinput nounput
 
 
+
 %%
-"int"|"float"|"char"|"string"|"bool" {yylval.string = strdup(yytext); return TYPE;}
+"int"|"float"|"char"|"string"|"bool" {yylval.string= strdup(yytext); return TYPE;}
 "array"     {return ARRAY;}
 "class"     {return CLASS;}
 "begin"     {return BGIN;}
-"stop"      {return STOP;}
 "end"       {return END;}
 "if"        {return IF;}
 "else"      {return ELSE;}
@@ -52,7 +53,7 @@
 "true"      { yylval.integer = 1; return BOOLVAL;}
 "false"     { yylval.integer = 0; return BOOLVAL;}
 
-"<3"        {return HEART;}
+"main"        {return HEART;}
 
 [a-zA-Z_][a-zA-Z0-9_]*  {yylval.string = strdup(yytext); return ID;}
 [0-9]+                  {yylval.integer = atoi(yytext); return INTVAL;} 
