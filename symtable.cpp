@@ -1,7 +1,7 @@
-#include "Symtable.h"
+#include "SymTable.h"
 
-SymTable::SymTable(const std::string& name, SymTable* parent)
-    : name(name), parent(parent) {}
+SymTable::SymTable(const std::string& name, SymTable* parent, const std::string& scope)
+    : name(name), parent(parent), scope(scope){}
 
 void SymTable::addVar(const std::string& type, const std::string& name, const std::string& value) {
     vars.push_back({type, name, value});
@@ -61,32 +61,44 @@ void SymTable::printTableToFile(const char* filename, bool append) const {
         return;
     }
 
-    outputFile << "Scope: " << name << "\n";
-
-    // Print variables
-    outputFile << "Variables:\n";
-    for (const auto& var : vars) {
-        outputFile << "  - " << var.name << " (Type: " << var.type 
-                   << ", Value: " << (var.value.empty() ? "N/A" : var.value) << ")\n";
-    }
-
-    // Print functions
-    outputFile << "Functions:\n";
-    for (const auto& func : functions) {
-        outputFile << "  - " << func.name << " (Return Type: " << func.returnType 
-                   << ", Parameters: ";
-        for (const auto& param : func.parameters) {
-            outputFile << param.type << " " << param.name << ", ";
+    // Print only the global scope once
+    
+        outputFile << "Scope and name: " << scope << " " << name << "\n";
+        
+        // Print variables
+        outputFile << "Variables:\n";
+        for (const auto& var : vars) {
+            outputFile << "  - " << var.name << " (Type: " << var.type 
+                    << ", Value: " << (var.value.empty() ? "N/A" : var.value) << ")\n";
         }
-        outputFile << ")\n";
-    }
 
-    // Print nested scopes
-    if (parent) {
-        parent->printTableToFile(filename, true);
-    }
+        // Print functions
+        outputFile << "Functions:\n";
+        for (const auto& func : functions) {
+            outputFile << "  - " << func.name << " (Return Type: " << func.returnType 
+                    << ", Parameters: ";
+            for (const auto& param : func.parameters) {
+                outputFile << param.type << " " << param.name << ", ";
+            }
+            outputFile << ")\n";
+        }
 
+        // Print classes
+        outputFile << "Classes:\n";
+        for (const auto& cls : classes) {
+            outputFile << "  - " << cls << "\n";
+        }
+        if(scope!="global")
+        outputFile << "Parent scope:"<<parent->name<<"\n";
+    
+
+    // Print nested scopes (for parent scopes, if any)
+    /*if (parent) {
+        parent->printTableToFile(filename, true);  // Pass false for non-global scopes
+    }
+*/
     outputFile << "\n";
     outputFile.close();
 }
+
 SymTable::~SymTable() {}
