@@ -2,16 +2,18 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include "Symtable.h"
+#include <cstring>
+#include "SymTable.h"
 
 using namespace std;
 
 extern int yylex();
+extern int yydebug;
 extern int yylineno;
 void yyerror(const char *s);
 
 // Pointer to the current symbol table
-SymTable* globalSymTable = new SymTable("global"); 
+SymTable* globalSymTable = new SymTable("global", nullptr, "global"); 
 SymTable* currentSymTable = globalSymTable;  // Pointer to the global symbol table
 
 std::vector<ParamInfo> globalParamList;    // Stores all function parameters
@@ -44,7 +46,11 @@ bool isBoolean(const string& str) {
     return (str == "true" || str == "false");
 }
 
-
+struct param_list {
+    // Add fields as needed
+    char* name;
+    struct param_list* next;
+};
 %}
 
 %union {
@@ -54,6 +60,15 @@ bool isBoolean(const string& str) {
     char character;
     int boolean;
     void* pointer; // Generic pointer for custom structures
+    struct param_list* param_list;
+    struct{
+        int type; // 0 = int, 1 = float, 2 = string
+        union{
+            int intValue;
+            float floatValue;
+            char* stringValue;
+        };
+    } expressionVal;
 }
 
 
@@ -61,13 +76,13 @@ bool isBoolean(const string& str) {
 %token <character> CHARVAL
 %token <integer> INTVAL BOOLVAL
 %token <floater> FLOATVAL
-%token ARRAY CLASS BGIN END IF ELSE WHILE STOP FOR FUNC VOID RETURN PRINT TYPEOF HEART
+%token ARRAY CLASS BGIN END IF ELSE WHILE  FOR FUNC VOID RETURN PRINT TYPEOF HEART
 %token ASSIGN EQL NEQ  MINUS PLUS MULT DIV MOD
 %token P_OPEN P_CLOSE A_OPEN A_CLOSE B_OPEN B_CLOSE
 %token INCREMENT DECREMENT GT GTE LT LTE AND OR NOT DOT
 
 %type <param_list> parameter_list
-
+%type<expressionVal> expression
 %start program
 
 
@@ -79,7 +94,7 @@ bool isBoolean(const string& str) {
 %left MULT DIV MOD
 %left NOT
 %left A_OPEN A_CLOSE B_OPEN B_CLOSE P_OPEN P_CLOSE
-
+%nonassoc ELSE
 
 %%
 
@@ -96,7 +111,8 @@ class_section:
         if (globalSymTable->existsVar($2)) {
             yyerror("Class already declared in this scope");
         } else {
-            SymTable* classScope = new SymTable($2, globalSymTable);
+            globalSymTable->addClass($2);
+            SymTable* classScope = new SymTable($2, globalSymTable, "class");
             currentSymTable = classScope;
         }
     }
@@ -117,7 +133,6 @@ constructor_declaration :
     ;
 class_body:
     class_body class_member
-    | class_member
     | /* empty */  // Permite corp gol
     ;
 class_member:
@@ -170,18 +185,18 @@ n_dimensional_array:
 var_declaration:
     TYPE ID ';'
     { 
-        // if (currentSymTable->existsVar($2)) {
-        //     yyerror("Variable already declared in this scope");
-        // } else {
+        if (currentSymTable->existsVar($2)) {
+            yyerror("Variable already declared in this scope");
+         } else {
             currentSymTable->addVar($1, $2, "");
             printf("Global variable declared: %s\n", $2);
-        //}
+        }
     }
-    /* | TYPE ID ASSIGN expression ';'
+     | TYPE ID ASSIGN expression ';'
     {
-        currentSymTable->addVar($1, $2, $4);
-        printf("Global variable declared: %s with starting value: %d\n", $2, $4);
-    } */
+        currentSymTable->addVar($1, $2, "expresie");
+        printf("Global variable declared: %s with starting value: %s\n", $2, "expresie");
+    } 
     | ARRAY TYPE ID n_dimensional_array ';'
     { if (currentSymTable->existsVar($3)) {
             yyerror("Array already declared in this scope");
@@ -208,7 +223,7 @@ function_section:
     ;
 
 function_declaration:
-    FUNC TYPE ID P_OPEN parameter_list P_CLOSE A_OPEN statement_list A_CLOSE
+    FUNC TYPE ID P_OPEN parameter_list P_CLOSE A_OPEN 
     {
         if (currentSymTable->existsVar($3)) {
             yyerror("Function already declared in this scope");
@@ -221,12 +236,17 @@ function_declaration:
             globalParamList.clear();
 
             // Create a new scope for the function
-            SymTable* funcScope = new SymTable($3, currentSymTable);
+            SymTable* funcScope = new SymTable($3, currentSymTable, "function");
             currentSymTable = funcScope;
+
+            for(const auto& param : funcInfo.parameters){
+                currentSymTable->addVar(param.type, param.name);
+            }
         }
     }
+    statement_list A_CLOSE
     {
-        currentSymTable->printTableToFile("symbol_table.txt", true);
+        currentSymTable->printTableToFile("function_symbol_table.txt", true);
         SymTable* oldScope = currentSymTable;
         currentSymTable = currentSymTable->getParent();
         delete oldScope;
@@ -244,61 +264,97 @@ parameter_list:
         ParamInfo param = { $3, $4 };      // Create parameter
         globalParamList.push_back(param);  // Add parameter to global list
     }
-    | /* empty */
-    {
-        // Do nothing for empty parameter list
-    }
     ;
 
 //main function
 entry_point:
     FUNC VOID HEART P_OPEN P_CLOSE BGIN statement_list END
     { printf("Entry point executed\n"); }
-    |FUNC VOID HEART P_OPEN P_CLOSE BGIN END
-    { printf("Entry point executed\n"); }
-    ;
     
 
 statement_list:
     statement_list statement
-    {
-        // Add statements to globalStatements if needed
-        globalStatements.push_back(StatementInfo{});
-    }
-    | statement
-    {
-        globalStatements.push_back(StatementInfo{});
-    }
-    ;
+    { printf("STATEMENT ADAUGAT LA LISTA\n"); }
+    |statement
+    { printf("Single statement added\n"); }
+   ;
+
 
 statement:
-    assignment_statement
+    if_statement
+    | while_statement
+    | for_statement
+    | assignment_statement
     | object_assignment
     | method_call
     | field_access
-    | if_statement
-    | while_statement
-    | for_statement
     | return_statement
     | print_statement
     | typeof_statement
     | expression ';'
     | var_declaration
-    |prefix_incr_decre ';'
-    |postfix_incr_decre ';'   
-    ;
+    | prefix_incr_decre ';'
+    | postfix_incr_decre ';'
+;
+
 
 
 assignment_statement:
     ID ASSIGN STRINGVAL ';'
     {
+         if (!currentSymTable->existsVar($1)) {
+        string error = "Variable '" + string($1) + "' used without declaration";
+        yyerror(error.c_str());
+    }
         currentSymTable->addValue($1, $3);
         printf("Assignment: %s = ...\n", $1); 
     }
+    |ID ASSIGN INTVAL ';'
+    {
+         if (!currentSymTable->existsVar($1)) {
+        string error = "Variable '" + string($1) + "' used without declaration";
+        yyerror(error.c_str());
+    }
+        currentSymTable->addValue($1, to_string($3));
+    }
+    |ID ASSIGN FLOATVAL ';'
+    {
+         if (!currentSymTable->existsVar($1)) {
+        string error = "Variable '" + string($1) + "' used without declaration";
+        yyerror(error.c_str());
+    }
+        currentSymTable->addValue($1, to_string($3));
+    }
+    |ID ASSIGN CHARVAL ';'
+    {
+         if (!currentSymTable->existsVar($1)) {
+        string error = "Variable '" + string($1) + "' used without declaration";
+        yyerror(error.c_str());
+    }
+        currentSymTable->addValue($1, to_string($3));
+        printf("ASIGNARE CU CHAR\n");
+    }
+    |ID ASSIGN expression ';'
+    {
+         if (!currentSymTable->existsVar($1)) {
+        string error = "Variable '" + string($1) + "' used without declaration";
+        yyerror(error.c_str());
+    }
+        currentSymTable->addValue($1, "expresie");
+        printf("ASIGNARE CU EXPRESIE\n");
+    }
     | ID n_dimensional_array ASSIGN expression ';'
-    { printf("Array assignment: %s[...] = ...\n", $1); }
+    {  if (!currentSymTable->existsVar($1)) {
+        string error = "Variable '" + string($1) + "' used without declaration";
+        yyerror(error.c_str());
+    }
+        printf("Array assignment: %s[...] = ...\n", $1); }
     | ID ASSIGN method_call
-    {printf("Assign method call - object\n");}
+    { if (!currentSymTable->existsVar($1)) {
+        string error = "Variable '" + string($1) + "' used without declaration";
+        yyerror(error.c_str());
+    }
+        printf("Assign method call - object\n");}
     ;
 
 object_assignment:
@@ -324,36 +380,38 @@ argument_list:
     ;
 
 if_statement:
-    IF P_OPEN boolean_expression P_CLOSE A_OPEN
+    IF P_OPEN boolean_expression P_CLOSE A_OPEN statement_list
     {
-        SymTable* ifScope = new SymTable("if_block", currentSymTable);
+        // Enter a new scope for the IF block
+        SymTable* ifScope = new SymTable("if_block", currentSymTable, "block- if");
+        printf("Entering scope: if_block at line %d\n", yylineno);
         currentSymTable = ifScope;
     }
-    statement_list
     A_CLOSE
     {
+        // Exit the IF block scope
         currentSymTable->printTableToFile("symbol_table.txt", true);
         SymTable* oldScope = currentSymTable;
         currentSymTable = currentSymTable->getParent();
         delete oldScope;
+        printf("If block parsed and scope exited at line %d\n", yylineno);
     }
     ;
 
-//un fel de break pt loop
-stop_statement:
-    STOP
-    {printf("Exit while loop\n");}
-    ;
 
 while_statement:
-    WHILE P_OPEN boolean_expression P_CLOSE BGIN 
+    WHILE P_OPEN boolean_expression P_CLOSE A_OPEN
     {
-         SymTable* whileSymTable = new SymTable("while", currentSymTable);
+         SymTable* whileSymTable = new SymTable("while", currentSymTable, "block - while");
+         printf("Entering while-scope at line%d\n", yylineno);
         currentSymTable = whileSymTable; // Switch to block scope
     }
-    statement_list END
+    statement_list A_CLOSE
     { 
-        currentSymTable = currentSymTable->parent;
+        currentSymTable->printTableToFile("symbol_table.txt", true);
+        SymTable* oldScope = currentSymTable;
+        currentSymTable = currentSymTable->getParent();
+        delete oldScope;
         printf("While loop executed\n"); }
     ;
 prefix_incr_decre:
@@ -374,16 +432,18 @@ for_statement:
 
         // Execute the statements inside the 'for' loop
         printf("For loop executed\n");
-
+         currentSymTable->printTableToFile("symbol_table.txt", true);
         // Exit the block scope after the loop
-        currentSymTable = currentSymTable->parent;
+        SymTable* oldScope = currentSymTable;
+        currentSymTable = currentSymTable->getParent();
+        delete oldScope;
     }
     | FOR P_OPEN assignment_statement boolean_expression ';' postfix_incr_decre P_CLOSE BGIN statement_list END
     {
         // Create a new symbol table for the block scope inside the 'for' loop
         SymTable* blockSymTable = new SymTable("block", currentSymTable);
         currentSymTable = blockSymTable; // Switch to the block scope
-
+         currentSymTable->printTableToFile("symbol_table.txt", true);
         // Execute the statements inside the 'for' loop
         printf("For loop executed\n");
 
@@ -395,7 +455,7 @@ for_statement:
         // Create a new symbol table for the block scope inside the 'for' loop
         SymTable* blockSymTable = new SymTable("block", currentSymTable);
         currentSymTable = blockSymTable; // Switch to the block scope
-
+         currentSymTable->printTableToFile("symbol_table.txt", true);
         // Execute the statements inside the 'for' loop
         printf("For loop executed\n");
 
@@ -443,36 +503,163 @@ typeof_statement:
 
 // expresii aritmetice
 expression:
-     expression PLUS expression
-    | expression MINUS expression 
+    expression PLUS expression
+    {
+        if ($1.type == $3.type) {
+            if ($1.type == 0) { // int
+                $$.type = 0;
+                $$.intValue = $1.intValue + $3.intValue;
+            } else if ($1.type == 1) { // float
+                $$.type = 1;
+                $$.floatValue = $1.floatValue + $3.floatValue;
+            } else {
+                yyerror("Invalid operation for strings");
+            }
+        } else {
+            yyerror("Type mismatch in addition");
+        }
+    }
+    | expression MINUS expression
+    {
+        if ($1.type == $3.type) {
+            if ($1.type == 0) { // int
+                $$.type = 0;
+                $$.intValue = $1.intValue - $3.intValue;
+            } else if ($1.type == 1) { // float
+                $$.type = 1;
+                $$.floatValue = $1.floatValue - $3.floatValue;
+            } else {
+                yyerror("Invalid operation for strings");
+            }
+        } else {
+            yyerror("Type mismatch in subtraction");
+        }
+    }
     | expression MULT expression
+    {
+        if ($1.type == $3.type) {
+            if ($1.type == 0) { // int
+                $$.type = 0;
+                $$.intValue = $1.intValue * $3.intValue;
+            } else if ($1.type == 1) { // float
+                $$.type = 1;
+                $$.floatValue = $1.floatValue * $3.floatValue;
+            } else {
+                yyerror("Invalid operation for strings");
+            }
+        } else {
+            yyerror("Type mismatch in multiplication");
+        }
+    }
     | expression DIV expression
+    {
+        if ($1.type == $3.type) {
+            if ($1.type == 0) { // int
+                if ($3.intValue == 0) {
+                    yyerror("Division by zero");
+                } else {
+                    $$.type = 0;
+                    $$.intValue = $1.intValue / $3.intValue;
+                }
+            } else if ($1.type == 1) { // float
+                if ($3.floatValue == 0.0) {
+                    yyerror("Division by zero");
+                } else {
+                    $$.type = 1;
+                    $$.floatValue = $1.floatValue / $3.floatValue;
+                }
+            } else {
+                yyerror("Invalid operation for strings");
+            }
+        } else {
+            yyerror("Type mismatch in division");
+        }
+    }
     | expression MOD expression
-   // | expression AND expression
-   // | expression OR expression
-    //| NOT expression
-    | P_OPEN expression P_CLOSE
-    | ID
-   // | ID B_OPEN expression B_CLOSE
+    {
+        if ($1.type == 0 && $3.type == 0) { // Both operands must be integers
+            if ($3.intValue == 0) {
+                yyerror("Modulo by zero");
+            } else {
+                $$.type = 0;
+                $$.intValue = $1.intValue % $3.intValue;
+            }
+        } else {
+            yyerror("Modulo operation is only valid for integers");
+        }
+    }
+   | ID
+{
+    if (!currentSymTable->existsVar($1)) {
+        string error = "Variable '" + string($1) + "' used without declaration";
+        yyerror(error.c_str());
+    } else {
+        string varType = currentSymTable->getVarType($1);
+        string varValue = currentSymTable->getVarValue($1);
+        
+        if (varValue.empty()) {
+            string error = "Variable '" + string($1) + "' has no assigned value";
+            yyerror(error.c_str());
+        } else if (varType == "int") {
+            try {
+                $$.type = 0;
+                $$.intValue = stoi(varValue); // Convert to integer
+            } catch (const std::invalid_argument& e) {
+                yyerror(("Invalid integer value for variable '" + string($1) + "'").c_str());
+            } catch (const std::out_of_range& e) {
+                yyerror(("Integer value out of range for variable '" + string($1) + "'").c_str());
+            }
+        } else if (varType == "float") {
+            try {
+                $$.type = 1;
+                $$.floatValue = stof(varValue); // Convert to float
+            } catch (const std::invalid_argument& e) {
+                yyerror(("Invalid float value for variable '" + string($1) + "'").c_str());
+            } catch (const std::out_of_range& e) {
+                yyerror(("Float value out of range for variable '" + string($1) + "'").c_str());
+            }
+        } else if (varType == "string") {
+            $$.type = 2;
+            $$.stringValue = strdup(varValue.c_str()); // Assign string
+        } else {
+            yyerror(("Unsupported type for variable '" + string($1) + "'").c_str());
+        }
+    }
+}
     | INTVAL
+    {
+        $$.type = 0;
+        $$.intValue = $1;
+    }
     | FLOATVAL
+    {
+        $$.type = 1;
+        $$.floatValue = $1;
+    }
     | STRINGVAL
-    | BOOLVAL
-    | CHARVAL
-    | stop_statement
+    {
+        $$.type = 2;
+        $$.stringValue = $1;
+    }
     ;
 
-boolean_expression  : expression GT expression
-                    | expression LT expression
-                    | expression GTE expression
-                    | expression LTE expression
-                    | expression EQL expression
-                    | expression NEQ expression
-                    | boolean_expression AND boolean_expression
-                    | boolean_expression OR boolean_expression
-                    | NOT boolean_expression
-                    | BOOLVAL
-                    ;
+
+boolean_expression:
+    expression GT expression
+    | expression LT expression
+    | expression GTE expression
+    | expression LTE expression
+    | expression EQL expression
+    {
+        printf("AM PARSAT == \n");
+    }
+    | expression NEQ expression
+    | boolean_expression AND boolean_expression
+    | boolean_expression OR boolean_expression
+    | NOT boolean_expression
+    | BOOLVAL
+    ;
+
 
 %%
 
@@ -481,6 +668,7 @@ void yyerror(const char *s) {
 }
 
 int main() {
+    
     if (yyparse() == 0) {
         printf("Parsing completed successfully.\n");
         globalSymTable->printTableToFile("complete_symbol_table.txt", false);
