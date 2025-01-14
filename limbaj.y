@@ -363,9 +363,39 @@ object_assignment:
     ;
 
 method_call:
-    ID DOT ID P_OPEN argument_list P_CLOSE ';'
-    { printf("Method call: %s.%s(...)\n", $1, $3); }
+    ID P_OPEN argument_list P_CLOSE ';'
+    {
+        // Verificăm dacă funcția există
+        if (!currentSymTable->existsFunction($1)) {
+            string error = "Function '" + string($1) + "' not declared in this scope";
+            yyerror(error.c_str());
+        } else {
+            // Obținem informațiile funcției
+            FunctionInfo funcInfo = currentSymTable->getFunctionInfo($1);
+
+            // Verificăm dacă numărul de parametri corespunde
+            if (funcInfo.parameters.size() != globalParamList.size()) {
+                string error = "Incorrect number of arguments for function '" + string($1) + "'";
+                yyerror(error.c_str());
+            } else {
+                // Verificăm dacă tipurile parametrilor corespund
+                for (size_t i = 0; i < globalParamList.size(); ++i) {
+                    if (funcInfo.parameters[i].type != globalParamList[i].type) {
+                        string error = "Type mismatch for parameter " + to_string(i + 1) +
+                                       " in function '" + string($1) + "'";
+                        yyerror(error.c_str());
+                    }
+                }
+            }
+
+           
+            globalParamList.clear();
+
+            printf("Function '%s' called successfully\n", $1);
+        }
+    }
     ;
+
 field_access:
     ID DOT ID ';'
     {
@@ -375,7 +405,20 @@ field_access:
 
 argument_list:
     expression
+    {
+        // Adăugăm tipul expresiei în lista globală de parametri
+        ParamInfo param;
+        param.type = $1.type; // Setăm tipul
+        param.name = "";      // Numele nu este necesar pentru apel
+        globalParamList.push_back(param);
+    }
     | argument_list ',' expression
+    {
+        ParamInfo param;
+        param.type = $3.type; // Setăm tipul
+        param.name = "";      // Numele nu este necesar pentru apel
+        globalParamList.push_back(param);
+    }
     | /* empty */
     ;
 
@@ -685,3 +728,4 @@ int main() {
 
     return 0;
 }
+
