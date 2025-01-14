@@ -2,9 +2,8 @@ class exemplu {
   int a;
   int b;
   func int interschimbare(int c, int d) {
-    c := c + d;
-    d := c - d;
-    c := c - d;
+    int z;
+    z:=3;
   }
 };
 
@@ -12,24 +11,30 @@ class exemplu {
 int y;
 bool z;
 
-func int ana(int x, int y) {
-  int z;
-  z := x + y;
-  
+func int add(int a, int b) {
+    return a + b;
 }
 
 func void main() begin
-   if(x==5)
+   int x;
+   if(x==3)
    {
-    int x;
-    x:=6;
-   }
+    int g;
+  #
    int i;
    for(i:=1;i<=10;i++)
    begin
       x++;
+      int l;
    end
-  float r;
-  r:=r+x;
+  
+  add(1, 2);
+ int q;
+  q:=2;
+  array int k[12][32][4];
+  int j;
+  j:=3;
+  TypeOf(2 > 3 && 7 < 4);
+  Print(3*2 - 5/q+j);
 end
 
