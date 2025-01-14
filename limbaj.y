@@ -21,6 +21,7 @@ SymTable* currentSymTable = globalSymTable;  // Pointer to the global symbol tab
 std::vector<ParamInfo> globalParamList;    // Stores all function parameters
 std::vector<StatementInfo> globalStatements; // Stores statements
 
+class ASTNode ast;
 
 
 struct param_list {
@@ -28,6 +29,34 @@ struct param_list {
     char* name;
     struct param_list* next;
 };
+
+
+
+bool isInteger(const std::string& str) {
+    try {
+        std::stoi(str);
+        return true;
+    } catch (const std::invalid_argument& ia) {
+        return false;
+    } catch (const std::out_of_range& oor) {
+        return false;
+    }
+}
+
+bool isFloat(const std::string& str) {
+    try {
+        std::stof(str);
+        return true;
+    } catch (const std::invalid_argument& ia) {
+        return false;
+    } catch (const std::out_of_range& oor) {
+        return false;
+    }
+}
+
+bool isBoolean(const std::string& str) {
+    return (str == "true" || str == "false");
+}
 %}
 
 %union {
@@ -38,7 +67,8 @@ struct param_list {
     int boolean;
     void* pointer; // Generic pointer for custom structures
     struct param_list* param_list;
-    ASTNode* astNode;
+    struct Node *nod;
+    //ASTNode* astNode;
 }
 
 
@@ -47,12 +77,13 @@ struct param_list {
 %token <integer> INTVAL BOOLVAL
 %token <floater> FLOATVAL
 %token ARRAY CLASS BGIN END IF ELSE WHILE  FOR FUNC VOID RETURN PRINT TYPEOF HEART
-%token ASSIGN EQL NEQ  MINUS PLUS MULT DIV MOD
+%token ASSIGN EQL NEQ  MINUS PLUS MULT DIV POW
 %token P_OPEN P_CLOSE A_OPEN A_CLOSE B_OPEN B_CLOSE
 %token INCREMENT DECREMENT GT GTE LT LTE AND OR NOT DOT
 
 %type <param_list> parameter_list
-%type <astNode> expression
+%type <nod> expression print_statement
+%type <nod> boolean_expression
 %start program
 
 
@@ -61,10 +92,10 @@ struct param_list {
 %left EQL NEQ
 %left LT LTE GT GTE  
 %left PLUS MINUS
-%left MULT DIV MOD
+%left MULT DIV POW
 %left NOT
 %left A_OPEN A_CLOSE B_OPEN B_CLOSE P_OPEN P_CLOSE
-%nonassoc ELSE
+
 
 %%
 
@@ -150,8 +181,6 @@ n_dimensional_array:
     |B_OPEN B_CLOSE
     ;
 
-
-
 var_declaration:
     TYPE ID ';'
     { 
@@ -171,7 +200,7 @@ var_declaration:
     { if (currentSymTable->existsVar($3)) {
             yyerror("Array already declared in this scope");
         } else {
-            currentSymTable->addVar($2, $3, ""); // Add array with base type
+            currentSymTable->addVar("ARRAY", $3, ""); // Add array with base type
             printf("Global array declared\n");
         } 
     }
@@ -304,15 +333,6 @@ assignment_statement:
         currentSymTable->addValue($1, to_string($3));
         printf("ASIGNARE CU CHAR\n");
     }
-    |ID ASSIGN expression ';'
-    {
-         if (!currentSymTable->existsVar($1)) {
-        string error = "Variable '" + string($1) + "' used without declaration";
-        yyerror(error.c_str());
-    }
-        currentSymTable->addValue($1, "expresie");
-        printf("ASIGNARE CU EXPRESIE\n");
-    }
     | ID n_dimensional_array ASSIGN expression ';'
     {  if (!currentSymTable->existsVar($1)) {
         string error = "Variable '" + string($1) + "' used without declaration";
@@ -393,14 +413,14 @@ argument_list:
     ;
 
 if_statement:
-    IF P_OPEN boolean_expression P_CLOSE A_OPEN statement_list
+    IF P_OPEN boolean_expression P_CLOSE A_OPEN statement_list 
     {
         // Enter a new scope for the IF block
-        SymTable* ifScope = new SymTable("if_block", currentSymTable, "block- if");
+        SymTable* ifScope = new SymTable("if_block", currentSymTable, "block-if");
         printf("Entering scope: if_block at line %d\n", yylineno);
         currentSymTable = ifScope;
     }
-    A_CLOSE
+    '#'
     {
         // Exit the IF block scope
         currentSymTable->printTableToFile("symbol_table.txt", true);
@@ -409,8 +429,31 @@ if_statement:
         delete oldScope;
         printf("If block parsed and scope exited at line %d\n", yylineno);
     }
-    ;
+    | IF P_OPEN boolean_expression P_CLOSE A_OPEN statement_list 
+    {
+        // Enter a new scope for the IF block
+        SymTable* ifScope = new SymTable("if_block", currentSymTable, "block-if");
+        printf("Entering scope: if_block at line %d\n", yylineno);
+        currentSymTable = ifScope;
+    }
+    A_CLOSE ELSE A_OPEN statement_list A_CLOSE
+    {
+        // Exit the IF block scope
+        currentSymTable->printTableToFile("symbol_table.txt", true);
 
+        // Create and manage a new scope for the ELSE block
+        SymTable* elseScope = new SymTable("else_block", currentSymTable, "block-else");
+        printf("Entering scope: else_block at line %d\n", yylineno);
+        currentSymTable = elseScope;
+
+        // Exit the ELSE block scope
+        currentSymTable->printTableToFile("symbol_table.txt", true);
+        SymTable* oldScope = currentSymTable;
+        currentSymTable = currentSymTable->getParent();
+        delete oldScope;
+        printf("Else block parsed and scope exited at line %d\n", yylineno);
+    }
+    ;
 
 while_statement:
     WHILE P_OPEN boolean_expression P_CLOSE A_OPEN
@@ -485,32 +528,49 @@ return_statement:
 print_statement:
     PRINT P_OPEN expression P_CLOSE ';'
     {
-        if ($3) {
-            try {
-                std::string result = $3->evaluate();
-                std::cout << "Print: " << result << std::endl;
-                delete $3;  // Cleanup AST
-            } catch (const std::exception& e) {
-                yyerror(e.what());
-            }
-        }
+        $$=$3;
+       cout << "Eval value: " << ast.evaluateTree() << endl; //ast.printTree(); 
     }
     ;
 typeof_statement:
     TYPEOF P_OPEN expression P_CLOSE ';'
-    {
-        if ($3) {
-            std::cout << "Type: ";
-            switch ($3->type) {
-                case ASTNode::INT: std::cout << "int"; break;
-                case ASTNode::FLOAT: std::cout << "float"; break;
-                case ASTNode::BOOLEAN: std::cout << "bool"; break;
-                default: std::cout << "unknown"; break;
-            }
-            std::cout << std::endl;
-            delete $3;  // Cleanup AST
-        }
-    }
+    {  
+                                cout << "TypeOf value: ";
+                                string resultValue = ast.evaluateTree();
+
+                                // Assuming your evaluateTree() function returns a string representation of the result
+
+                                if (isInteger(resultValue)) {
+                                    cout << "Integer" << endl;
+                                } else if (isFloat(resultValue)) {
+                                    cout << "Float" << endl;
+                                } else if (isBoolean(resultValue)) {
+                                    cout << "Boolean" << endl;
+                                } else {
+                                    cout << "Unknown" << endl;
+                                }
+
+                                ast.printTree();         
+                             }
+    | TYPEOF P_OPEN boolean_expression P_CLOSE ';'
+    {  
+                                cout << "TypeOf value: ";
+                                string resultValue = ast.evaluateTree();
+
+                                // Assuming your evaluateTree() function returns a string representation of the result
+
+                                if (isInteger(resultValue)) {
+                                    cout << "Integer" << endl;
+                                } else if (isFloat(resultValue)) {
+                                    cout << "Float" << endl;
+                                } else if (isBoolean(resultValue)) {
+                                    cout << "Boolean" << endl;
+                                } else {
+                                    cout << "Unknown" << endl;
+                                }
+
+                                ast.printTree();         
+                             }
     ;
 
 /* statement_typeof: expression {  
@@ -537,91 +597,101 @@ typeof_statement:
 expression:
     expression PLUS expression
     {
-        if ($1->type == $3->type) {
-            $$ = new ASTNode(ASTNode::OPERATOR, "+", $1, $3);
-            $$->type = $1->type; // Propagate type
-        } else {
-            yyerror("Type mismatch in addition");
-            $$ = nullptr;
-        }
+        if($1->type=="bool"||$3->type=="bool")
+                            {
+                                yyerror("Cannot perform mathematical operations on type 'bool'");
+                            }
+         if($1->type!=$3->type)
+                            {
+                                string err="Operands have different types! '"+$1->type+"' + '"+$3->type+"'";
+                                yyerror(err.c_str());
+                            }
+                        $$ = new Node { $1, $3, "+",$1->type }; 
+                        ast.AddNode("+",$1,$3,$1->type);
     }
     | expression MINUS expression
-    {
-        if ($1->type == $3->type) {
-            $$ = new ASTNode(ASTNode::OPERATOR, "-", $1, $3);
-            $$->type = $1->type; // Propagate type
-        } else {
-            yyerror("Type mismatch in subtraction");
-            $$ = nullptr;
-        }
-    }
+    { 
+                        if($1->type=="bool"||$3->type=="bool")
+                            { 
+                                yyerror("Cannot perform mathematical operations on type 'bool'");
+                            }
+                        if($1->type!=$3->type) 
+                            {
+                                string err="Operands have different types! '"+$1->type+"' - '"+$3->type+"'";
+                                yyerror(err.c_str());
+                            }
+                        $$ = new Node { $1, $3, "-",$1->type }; 
+                        ast.AddNode("-",$1,$3,$1->type);
+                    }
     | expression MULT expression
-    {
-        if ($1->type == $3->type) {
-            $$ = new ASTNode(ASTNode::OPERATOR, "*", $1, $3);
-            $$->type = $1->type; // Propagate type
-        } else {
-            yyerror("Type mismatch in multiplication");
-            $$ = nullptr;
-        }
-    }
+     { 
+                        if($1->type=="bool"||$3->type=="bool")  
+                            {
+                                yyerror("Cannot perform mathematical operations on type 'bool'");
+                            }
+                        if($1->type!=$3->type)
+                            {
+                                string err="Operands have different types! '"+$1->type+"' * '"+$3->type+"'";
+                                yyerror(err.c_str());
+                            }
+                        $$ = new Node { $1, $3, "*",$1->type }; 
+                        ast.AddNode("*",$1,$3,$1->type);
+                    }
     | expression DIV expression
-    {
-        if ($1->type == $3->type) {
-            if ($3->value == "0") {
-                yyerror("Division by zero");
-                $$ = nullptr;
-            } else {
-                $$ = new ASTNode(ASTNode::OPERATOR, "/", $1, $3);
-                $$->type = $1->type; // Propagate type
-            }
-        } else {
-            yyerror("Type mismatch in division");
-            $$ = nullptr;
-        }
-    }
-    | expression MOD expression
-    {
-        if ($1->type == ASTNode::INT && $3->type == ASTNode::INT) {
-            if ($3->value == "0") {
-                yyerror("Modulo by zero");
-                $$ = nullptr;
-            } else {
-                $$ = new ASTNode(ASTNode::OPERATOR, "%", $1, $3);
-                $$->type = ASTNode::INT; // MOD always returns int
-            }
-        } else {
-            yyerror("Modulo operation is only valid for integers");
-            $$ = nullptr;
-        }
-    }
+     { 
+                        if($1->type=="bool"||$3->type=="bool")
+                            {
+                                yyerror("Cannot perform mathematical operations on type 'bool'");
+                            }
+                        if($1->type!=$3->type)
+                            {   
+                                string err="Operands have different types! '"+$1->type+"' / '"+$3->type+"'";
+                                yyerror(err.c_str());
+                            }
+                        $$ = new Node { $1, $3, "/",$1->type }; 
+                        ast.AddNode("/",$1,$3,$1->type);}
+    
+    | expression POW expression
+   { 
+                        if($1->type=="bool"||$3->type=="bool")
+                            {
+                                yyerror("Cannot perform mathematical operations on type 'bool'");
+                            }
+                        if($1->type!=$3->type)
+                            {
+                                string err="Operands have different types! '"+$1->type+"' ^ '"+$3->type+"'";
+                                yyerror(err.c_str());
+                            }
+                        $$ = new Node{$1, $3, "^",$1->type}; 
+                        ast.AddNode("^",$1,$3,$1->type);
+                    }
     | INTVAL
     {
-        $$ = new ASTNode(ASTNode::INT, std::to_string($1));
-        $$->type = ASTNode::INT;
+        
+                            $$ = new Node{NULL, NULL, to_string($1),"int"}; 
+                            ast.AddNode(to_string($1),NULL,NULL,"int");
     }
     | FLOATVAL
-    {
-        $$ = new ASTNode(ASTNode::FLOAT, std::to_string($1));
-        $$->type = ASTNode::FLOAT;
+    { $$=new Node{NULL,NULL,to_string($1),"float"};
+                            ast.AddNode(to_string($1),NULL,NULL,"float"); 
     }
-    | ID
+    |BOOLVAL
+    {
+        $$ = new Node{NULL, NULL, $1 ? "true" : "false", "bool"};
+        ast.AddNode($1 ? "true" : "false", NULL, NULL, "bool");
+    }
+     |ID
     {
         if (!currentSymTable->existsVar($1)) {
             yyerror(("Undeclared variable: " + std::string($1)).c_str());
-            $$ = nullptr;
+            $$ = nullptr;  // Handle undeclared variable
         } else {
+            // Fetch the type and value of the variable from the symbol table
             std::string varType = currentSymTable->getVarType($1);
-            $$ = new ASTNode(ASTNode::IDENTIFIER, $1);
+            std::string varValue = currentSymTable->getVarValue($1);
 
-            if (varType == "int")
-                $$->type = ASTNode::INT;
-            else if (varType == "float")
-                $$->type = ASTNode::FLOAT;
-            else if (varType == "bool")
-                $$->type = ASTNode::BOOLEAN;
-            else
-                yyerror("Unsupported variable type");
+            $$ = new Node{NULL, NULL, varValue, varType};  // Create a new node with the value and type
+            ast.AddNode(varValue, NULL, NULL, varType);    // Add to AST
         }
     }
     ;
@@ -630,18 +700,145 @@ expression:
 
 boolean_expression:
     expression GT expression
+    { 
+                        if($1->type=="bool"||$3->type=="bool")
+                        {
+                            yyerror("Cannot perform mathematical operations on type 'bool'");
+                        }
+                        if($1->type!=$3->type)
+                        {
+                            string err="Operands have different types! '"+$1->type+"' > '"+$3->type+"'";
+                            yyerror(err.c_str());
+                        }
+                        $$ = new Node{$1, $3, ">","bool"}; 
+                        ast.AddNode(">",$1,$3,"bool");}
     | expression LT expression
+     { 
+                        if($1->type=="bool"||$3->type=="bool")
+                            {
+                                yyerror("Cannot perform mathematical operations on type 'bool'");
+                            }
+                        if($1->type!=$3->type)
+                            { 
+                                string err="Operands have different types! '"+$1->type+"' < '"+$3->type+"'";
+                                yyerror(err.c_str());
+                            }
+                            $$ = new Node{$1, $3, "<","bool"}; 
+                            ast.AddNode("<",$1,$3,"bool");}
     | expression GTE expression
+    { 
+                        if($1->type=="bool"||$3->type=="bool")
+                        {
+                            yyerror("Cannot perform mathematical operations on type 'bool'");
+                        }
+                        if($1->type!=$3->type)
+                        {
+                            string err="Operands have different types! '"+$1->type+"' >= '"+$3->type+"'";
+                            yyerror(err.c_str());
+                        }
+                        $$ = new Node{$1, $3, ">=","bool"}; 
+                        ast.AddNode(">=",$1,$3,"bool");}
     | expression LTE expression
+     { 
+                        if($1->type=="bool"||$3->type=="bool")
+                            { 
+                                yyerror("Cannot perform mathematical operations on type 'bool'");
+                            }
+                        if($1->type!=$3->type)
+                            {
+                                string err="Operands have different types! '"+$1->type+"' <= '"+$3->type+"'";
+                                yyerror(err.c_str());
+                            }
+                            $$ = new Node{$1, $3, "<=","bool"}; 
+                            ast.AddNode("<=",$1,$3,"bool");}
     | expression EQL expression
     {
         printf("AM PARSAT == \n");
+         { 
+                        if($1->type=="bool"||$3->type=="bool")
+                        {
+                            yyerror("Cannot perform mathematical operations on type 'bool'");
+                        }
+                        if($1->type!=$3->type)
+                        {
+                            string err="Operands have different types! '"+$1->type+"' == '"+$3->type+"'";
+                            yyerror(err.c_str());
+                        }
+                        $$ = new Node{$1, $3, "==","bool"}; 
+                        ast.AddNode("==",$1,$3,"bool");
+                    }
     }
     | expression NEQ expression
+     { 
+                        if($1->type=="bool"||$3->type=="bool")
+                        {
+                            yyerror("Cannot perform mathematical operations on type 'bool'");
+                        }
+                        if($1->type!=$3->type)
+                        {
+                            string err="Operands have different types! '"+$1->type+"' != '"+$3->type+"'";
+                            yyerror(err.c_str());
+                        }
+                        $$ = new Node{$1, $3, "!=","bool"}; 
+                        ast.AddNode("!=",$1,$3,"bool");}
     | boolean_expression AND boolean_expression
+    {
+                        if($1->type=="int"||$1->type=="float"||$3->type=="int"||$3->type=="float")
+                            {
+                                string err="Operation && only supports bool operands ! '"+$1->type+"' && '"+$3->type+"'";
+                                yyerror(err.c_str());
+                            }
+                            $$ = new Node{$1, $3,"&&",$1->type}; 
+                            ast.AddNode("&&",$1,$3,$1->type);
+                    }
     | boolean_expression OR boolean_expression
+     {
+                         if($1->type=="int"||$1->type=="float"||$3->type=="int"||$3->type=="float")
+                            {
+                                string err="Operation || only supports bool operands ! '"+$1->type+"' || '"+$3->type+"'";
+                                yyerror(err.c_str());
+                            }
+                            $$ = new Node{$1, $3,"||",$1->type}; 
+                            ast.AddNode("||",$1,$3,$1->type);
+                    }
     | NOT boolean_expression
-    | BOOLVAL
+    {
+                        if($2->type=="int"||$2->type=="float")
+                            {
+                                string err="Operation ! only supports bool operand! !'"+$2->type+"''";
+                                yyerror(err.c_str());
+                            }
+                            $$ = new Node{$2, NULL,"!",$2->type}; 
+                            ast.AddNode("!",$2,NULL,$2->type); }
+    | INTVAL
+    {
+        
+                            $$ = new Node{NULL, NULL, to_string($1),"int"}; 
+                            ast.AddNode(to_string($1),NULL,NULL,"int");
+    }
+    | FLOATVAL
+    { $$=new Node{NULL,NULL,to_string($1),"float"};
+                            ast.AddNode(to_string($1),NULL,NULL,"float"); 
+    }
+    |BOOLVAL
+    {
+        $$ = new Node{NULL, NULL, $1 ? "true" : "false", "bool"};
+        ast.AddNode($1 ? "true" : "false", NULL, NULL, "bool");
+    }
+     |ID
+    {
+        if (!currentSymTable->existsVar($1)) {
+            yyerror(("Undeclared variable: " + std::string($1)).c_str());
+            $$ = nullptr;  // Handle undeclared variable
+        } else {
+            // Fetch the type and value of the variable from the symbol table
+            std::string varType = currentSymTable->getVarType($1);
+            std::string varValue = currentSymTable->getVarValue($1);
+
+            $$ = new Node{NULL, NULL, varValue, varType};  // Create a new node with the value and type
+            ast.AddNode(varValue, NULL, NULL, varType);    // Add to AST
+        }
+    }
     ;
 
 
