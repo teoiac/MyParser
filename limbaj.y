@@ -3,7 +3,9 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include "ASTNode.h"
 #include "SymTable.h"
+
 
 using namespace std;
 
@@ -20,31 +22,6 @@ std::vector<ParamInfo> globalParamList;    // Stores all function parameters
 std::vector<StatementInfo> globalStatements; // Stores statements
 
 
-bool isInteger(const string& str) {
-    try {
-        stoi(str);
-        return true;
-    } catch (const invalid_argument& ia) {
-        return false;
-    } catch (const out_of_range& oor) {
-        return false;
-    }
-}
-
-bool isFloat(const string& str) {
-    try {
-        stof(str);
-        return true;
-    } catch (const invalid_argument& ia) {
-        return false;
-    } catch (const out_of_range& oor) {
-        return false;
-    }
-}
-
-bool isBoolean(const string& str) {
-    return (str == "true" || str == "false");
-}
 
 struct param_list {
     // Add fields as needed
@@ -61,14 +38,7 @@ struct param_list {
     int boolean;
     void* pointer; // Generic pointer for custom structures
     struct param_list* param_list;
-    struct{
-        int type; // 0 = int, 1 = float, 2 = string
-        union{
-            int intValue;
-            float floatValue;
-            char* stringValue;
-        };
-    } expressionVal;
+    ASTNode* astNode;
 }
 
 
@@ -82,7 +52,7 @@ struct param_list {
 %token INCREMENT DECREMENT GT GTE LT LTE AND OR NOT DOT
 
 %type <param_list> parameter_list
-%type<expressionVal> expression
+%type <astNode> expression
 %start program
 
 
@@ -408,14 +378,14 @@ argument_list:
     {
         // Adăugăm tipul expresiei în lista globală de parametri
         ParamInfo param;
-        param.type = $1.type; // Setăm tipul
+        param.type = $1->type; // Setăm tipul
         param.name = "";      // Numele nu este necesar pentru apel
         globalParamList.push_back(param);
     }
     | argument_list ',' expression
     {
         ParamInfo param;
-        param.type = $3.type; // Setăm tipul
+        param.type = $3->type; // Setăm tipul
         param.name = "";      // Numele nu este necesar pentru apel
         globalParamList.push_back(param);
     }
@@ -514,13 +484,32 @@ return_statement:
 
 print_statement:
     PRINT P_OPEN expression P_CLOSE ';'
-    { printf("Print statement executed\n"); }
+    {
+        if ($3) {
+            try {
+                std::string result = $3->evaluate();
+                std::cout << "Print: " << result << std::endl;
+                delete $3;  // Cleanup AST
+            } catch (const std::exception& e) {
+                yyerror(e.what());
+            }
+        }
+    }
     ;
-
 typeof_statement:
     TYPEOF P_OPEN expression P_CLOSE ';'
     {
-        printf("TYPEOF Statement executed\n");
+        if ($3) {
+            std::cout << "Type: ";
+            switch ($3->type) {
+                case ASTNode::INT: std::cout << "int"; break;
+                case ASTNode::FLOAT: std::cout << "float"; break;
+                case ASTNode::BOOLEAN: std::cout << "bool"; break;
+                default: std::cout << "unknown"; break;
+            }
+            std::cout << std::endl;
+            delete $3;  // Cleanup AST
+        }
     }
     ;
 
@@ -548,143 +537,95 @@ typeof_statement:
 expression:
     expression PLUS expression
     {
-        if ($1.type == $3.type) {
-            if ($1.type == 0) { // int
-                $$.type = 0;
-                $$.intValue = $1.intValue + $3.intValue;
-            } else if ($1.type == 1) { // float
-                $$.type = 1;
-                $$.floatValue = $1.floatValue + $3.floatValue;
-            } else {
-                yyerror("Invalid operation for strings");
-            }
+        if ($1->type == $3->type) {
+            $$ = new ASTNode(ASTNode::OPERATOR, "+", $1, $3);
+            $$->type = $1->type; // Propagate type
         } else {
             yyerror("Type mismatch in addition");
+            $$ = nullptr;
         }
     }
     | expression MINUS expression
     {
-        if ($1.type == $3.type) {
-            if ($1.type == 0) { // int
-                $$.type = 0;
-                $$.intValue = $1.intValue - $3.intValue;
-            } else if ($1.type == 1) { // float
-                $$.type = 1;
-                $$.floatValue = $1.floatValue - $3.floatValue;
-            } else {
-                yyerror("Invalid operation for strings");
-            }
+        if ($1->type == $3->type) {
+            $$ = new ASTNode(ASTNode::OPERATOR, "-", $1, $3);
+            $$->type = $1->type; // Propagate type
         } else {
             yyerror("Type mismatch in subtraction");
+            $$ = nullptr;
         }
     }
     | expression MULT expression
     {
-        if ($1.type == $3.type) {
-            if ($1.type == 0) { // int
-                $$.type = 0;
-                $$.intValue = $1.intValue * $3.intValue;
-            } else if ($1.type == 1) { // float
-                $$.type = 1;
-                $$.floatValue = $1.floatValue * $3.floatValue;
-            } else {
-                yyerror("Invalid operation for strings");
-            }
+        if ($1->type == $3->type) {
+            $$ = new ASTNode(ASTNode::OPERATOR, "*", $1, $3);
+            $$->type = $1->type; // Propagate type
         } else {
             yyerror("Type mismatch in multiplication");
+            $$ = nullptr;
         }
     }
     | expression DIV expression
     {
-        if ($1.type == $3.type) {
-            if ($1.type == 0) { // int
-                if ($3.intValue == 0) {
-                    yyerror("Division by zero");
-                } else {
-                    $$.type = 0;
-                    $$.intValue = $1.intValue / $3.intValue;
-                }
-            } else if ($1.type == 1) { // float
-                if ($3.floatValue == 0.0) {
-                    yyerror("Division by zero");
-                } else {
-                    $$.type = 1;
-                    $$.floatValue = $1.floatValue / $3.floatValue;
-                }
+        if ($1->type == $3->type) {
+            if ($3->value == "0") {
+                yyerror("Division by zero");
+                $$ = nullptr;
             } else {
-                yyerror("Invalid operation for strings");
+                $$ = new ASTNode(ASTNode::OPERATOR, "/", $1, $3);
+                $$->type = $1->type; // Propagate type
             }
         } else {
             yyerror("Type mismatch in division");
+            $$ = nullptr;
         }
     }
     | expression MOD expression
     {
-        if ($1.type == 0 && $3.type == 0) { // Both operands must be integers
-            if ($3.intValue == 0) {
+        if ($1->type == ASTNode::INT && $3->type == ASTNode::INT) {
+            if ($3->value == "0") {
                 yyerror("Modulo by zero");
+                $$ = nullptr;
             } else {
-                $$.type = 0;
-                $$.intValue = $1.intValue % $3.intValue;
+                $$ = new ASTNode(ASTNode::OPERATOR, "%", $1, $3);
+                $$->type = ASTNode::INT; // MOD always returns int
             }
         } else {
             yyerror("Modulo operation is only valid for integers");
+            $$ = nullptr;
         }
     }
-   | ID
-{
-    if (!currentSymTable->existsVar($1)) {
-        string error = "Variable '" + string($1) + "' used without declaration";
-        yyerror(error.c_str());
-    } else {
-        string varType = currentSymTable->getVarType($1);
-        string varValue = currentSymTable->getVarValue($1);
-        
-        if (varValue.empty()) {
-            string error = "Variable '" + string($1) + "' has no assigned value";
-            yyerror(error.c_str());
-        } else if (varType == "int") {
-            try {
-                $$.type = 0;
-                $$.intValue = stoi(varValue); // Convert to integer
-            } catch (const std::invalid_argument& e) {
-                yyerror(("Invalid integer value for variable '" + string($1) + "'").c_str());
-            } catch (const std::out_of_range& e) {
-                yyerror(("Integer value out of range for variable '" + string($1) + "'").c_str());
-            }
-        } else if (varType == "float") {
-            try {
-                $$.type = 1;
-                $$.floatValue = stof(varValue); // Convert to float
-            } catch (const std::invalid_argument& e) {
-                yyerror(("Invalid float value for variable '" + string($1) + "'").c_str());
-            } catch (const std::out_of_range& e) {
-                yyerror(("Float value out of range for variable '" + string($1) + "'").c_str());
-            }
-        } else if (varType == "string") {
-            $$.type = 2;
-            $$.stringValue = strdup(varValue.c_str()); // Assign string
-        } else {
-            yyerror(("Unsupported type for variable '" + string($1) + "'").c_str());
-        }
-    }
-}
     | INTVAL
     {
-        $$.type = 0;
-        $$.intValue = $1;
+        $$ = new ASTNode(ASTNode::INT, std::to_string($1));
+        $$->type = ASTNode::INT;
     }
     | FLOATVAL
     {
-        $$.type = 1;
-        $$.floatValue = $1;
+        $$ = new ASTNode(ASTNode::FLOAT, std::to_string($1));
+        $$->type = ASTNode::FLOAT;
     }
-    | STRINGVAL
+    | ID
     {
-        $$.type = 2;
-        $$.stringValue = $1;
+        if (!currentSymTable->existsVar($1)) {
+            yyerror(("Undeclared variable: " + std::string($1)).c_str());
+            $$ = nullptr;
+        } else {
+            std::string varType = currentSymTable->getVarType($1);
+            $$ = new ASTNode(ASTNode::IDENTIFIER, $1);
+
+            if (varType == "int")
+                $$->type = ASTNode::INT;
+            else if (varType == "float")
+                $$->type = ASTNode::FLOAT;
+            else if (varType == "bool")
+                $$->type = ASTNode::BOOLEAN;
+            else
+                yyerror("Unsupported variable type");
+        }
     }
     ;
+
 
 
 boolean_expression:
@@ -728,4 +669,3 @@ int main() {
 
     return 0;
 }
-
