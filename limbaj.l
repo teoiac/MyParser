@@ -1,7 +1,8 @@
 %{
-#include <iostream>
-#include <vector>
+#include "ASTNode.h"
+#include "SymTable.h"
 #include "limbaj.tab.h"
+#include <iostream>
 %}
 
 %option noyywrap
@@ -31,7 +32,7 @@
 "+"         {return PLUS;}
 "*"         {return MULT;}
 "/"         {return DIV;}
-"%"         {return MOD;}
+"^"         {return POW;}
 
 "("         {return P_OPEN;}
 ")"         {return P_CLOSE;}
