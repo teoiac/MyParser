@@ -2,24 +2,25 @@
 #define ASTNODE_H
 
 #include <iostream>
-#include <string>
-#include <stdexcept>
-#include "SymTable.h"
+using namespace std;
 
-class ASTNode {
-public:
-    enum Type { INT, FLOAT, BOOLEAN, STRING, OPERATOR, IDENTIFIER };
-
-    Type type;
-    std::string value;  // Operator, identifier name, or literal value
-    ASTNode* left;      // Left child
-    ASTNode* right;     // Right child
-
-    ASTNode(Type t, const std::string& val);
-    ASTNode(Type t, const std::string& val, ASTNode* l, ASTNode* r);
-    ~ASTNode();
-
-    std::string evaluate();
+struct Node {
+    Node* left;
+    Node* right;
+    string content; // 2-numar + -operator
+    string type;
 };
 
-#endif
+class ASTNode{
+
+    Node *root;
+
+    public:
+    ASTNode();
+    void AddNode(string content,Node*left,Node*right,string type);
+    void printTree();
+    string evaluateTree();
+    ~ASTNode();
+};
+
+#endif // ASTNODE_H
