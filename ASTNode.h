@@ -21,6 +21,7 @@ class ASTNode{
     void printTree();
     string evaluateTree();
     ~ASTNode();
+    void deleteTree(Node* node);
 };
 
 #endif // ASTNODE_H

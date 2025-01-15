@@ -2,9 +2,7 @@
 #include <math.h>
 
 ASTNode::ASTNode() : root(nullptr)
-{
-    // Alte inițializări sau cod necesar în constructor (dacă este cazul)
-}
+{}
 
 void ASTNode::AddNode(string content, Node *left, Node *right, string type)
 {
@@ -32,7 +30,7 @@ int evaluateNodeint(Node *node)
 {
     if (node == nullptr)
     {
-        return 0; // Sau o altă valoare implicită, depinde de logică
+        return 0;
     }
 
     if (node->content == "+")
@@ -57,7 +55,6 @@ int evaluateNodeint(Node *node)
     }
     else if(node->type=="int")
     {
-        // Assuming content is a numeric value
         return stoi(node->content);
     }
     else return 0;
@@ -66,7 +63,7 @@ float evaluateNodefloat(Node *node)
 {
     if (node == nullptr)
     {
-        return 0; // Sau o altă valoare implicită, depinde de logică
+        return 0;
     }
 
     if (node->content == "+")
@@ -91,7 +88,6 @@ float evaluateNodefloat(Node *node)
     }
     else if(node->type=="float")
     {
-        // Assuming content is a numeric value
         return stof(node->content);
     }
     return 0;
@@ -188,7 +184,7 @@ string ASTNode::evaluateTree()
 {
     if (root == NULL)
     {
-        return 0; // Sau o altă valoare implicită, depinde de logică
+        return 0; 
     }
     if (root->content == "+" || root->content == "-" || root->content == "*" || root->content == "/" || root->content == "^")
     {
@@ -210,5 +206,18 @@ string ASTNode::evaluateTree()
 
 ASTNode::~ASTNode()
 {
-    // Implementare destructor (poate fi goală pentru moment)
+    deleteTree(root); 
 }
+
+void ASTNode::deleteTree(Node* node)
+{
+    if (node == nullptr)
+        return;
+
+    
+    deleteTree(node->left);
+    deleteTree(node->right);
+
+    delete node;
+}
+

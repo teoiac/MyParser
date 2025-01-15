@@ -16,22 +16,21 @@ void yyerror(const char *s);
 
 // Pointer to the current symbol table
 SymTable* globalSymTable = new SymTable("global", nullptr, "global"); 
-SymTable* currentSymTable = globalSymTable;  // Pointer to the global symbol table
+SymTable* currentSymTable = globalSymTable;  
 
-std::vector<ParamInfo> globalParamList;    // Stores all function parameters
-std::vector<StatementInfo> globalStatements; // Stores statements
+std::vector<ParamInfo> globalParamList;    // vectori cu parametri
+std::vector<StatementInfo> globalStatements; 
 
 class ASTNode ast;
 
 
 struct param_list {
-    // Add fields as needed
     char* name;
     struct param_list* next;
 };
 
 
-
+//functii pt typeof
 bool isInteger(const std::string& str) {
     try {
         std::stoi(str);
@@ -65,7 +64,7 @@ bool isBoolean(const std::string& str) {
     float floater;
     char character;
     int boolean;
-    void* pointer; // Generic pointer for custom structures
+    void* pointer;
     struct param_list* param_list;
     struct Node *nod;
     //ASTNode* astNode;
@@ -134,7 +133,7 @@ constructor_declaration :
     ;
 class_body:
     class_body class_member
-    | /* empty */  // Permite corp gol
+    | /* empty */  
     ;
 class_member:
     class_var_declaration
@@ -227,14 +226,11 @@ function_declaration:
         if (currentSymTable->existsVar($3)) {
             yyerror("Function already declared in this scope");
         } else {
-            // Collect parameters from globalParamList
+            
             FunctionInfo funcInfo = { $3, $2, currentSymTable->name, false, "", globalParamList };
             currentSymTable->addFunction(funcInfo);
 
-            // Clear globalParamList after usage
             globalParamList.clear();
-
-            // Create a new scope for the function
             SymTable* funcScope = new SymTable($3, currentSymTable, "function");
             currentSymTable = funcScope;
 
@@ -255,13 +251,13 @@ function_declaration:
 parameter_list:
     TYPE ID
     {
-        ParamInfo param = { $1, $2 };       // Create parameter
-        globalParamList.push_back(param);  // Add parameter to global list
+        ParamInfo param = { $1, $2 };      
+        globalParamList.push_back(param);  
     }
     | parameter_list ',' TYPE ID
     {
-        ParamInfo param = { $3, $4 };      // Create parameter
-        globalParamList.push_back(param);  // Add parameter to global list
+        ParamInfo param = { $3, $4 };      
+        globalParamList.push_back(param);  
     }
     ;
 
@@ -273,9 +269,7 @@ entry_point:
 
 statement_list:
     statement_list statement
-    { printf("STATEMENT ADAUGAT LA LISTA\n"); }
     |statement
-    { printf("Single statement added\n"); }
    ;
 
 
@@ -324,6 +318,15 @@ assignment_statement:
     }
         currentSymTable->addValue($1, to_string($3));
     }
+    |ID ASSIGN BOOLVAL ';'
+    {
+        if (!currentSymTable->existsVar($1)) {
+        string error = "Variable '" + string($1) + "' used without declaration";
+        yyerror(error.c_str());
+    }
+        currentSymTable->addValue($1, $3 ? "true" : "false");
+
+    }
     |ID ASSIGN CHARVAL ';'
     {
          if (!currentSymTable->existsVar($1)) {
@@ -355,20 +358,20 @@ object_assignment:
 method_call:
     ID P_OPEN argument_list P_CLOSE ';'
     {
-        // Verificăm dacă funcția există
+        
         if (!currentSymTable->existsFunction($1)) {
             string error = "Function '" + string($1) + "' not declared in this scope";
             yyerror(error.c_str());
         } else {
-            // Obținem informațiile funcției
+            
             FunctionInfo funcInfo = currentSymTable->getFunctionInfo($1);
 
-            // Verificăm dacă numărul de parametri corespunde
+            
             if (funcInfo.parameters.size() != globalParamList.size()) {
                 string error = "Incorrect number of arguments for function '" + string($1) + "'";
                 yyerror(error.c_str());
             } else {
-                // Verificăm dacă tipurile parametrilor corespund
+                
                 for (size_t i = 0; i < globalParamList.size(); ++i) {
                     if (funcInfo.parameters[i].type != globalParamList[i].type) {
                         string error = "Type mismatch for parameter " + to_string(i + 1) +
@@ -396,17 +399,17 @@ field_access:
 argument_list:
     expression
     {
-        // Adăugăm tipul expresiei în lista globală de parametri
+        
         ParamInfo param;
-        param.type = $1->type; // Setăm tipul
-        param.name = "";      // Numele nu este necesar pentru apel
+        param.type = $1->type; 
+        param.name = "";      
         globalParamList.push_back(param);
     }
     | argument_list ',' expression
     {
         ParamInfo param;
-        param.type = $3->type; // Setăm tipul
-        param.name = "";      // Numele nu este necesar pentru apel
+        param.type = $3->type; 
+        param.name = "";    
         globalParamList.push_back(param);
     }
     | /* empty */
@@ -415,14 +418,13 @@ argument_list:
 if_statement:
     IF P_OPEN boolean_expression P_CLOSE A_OPEN statement_list 
     {
-        // Enter a new scope for the IF block
+       
         SymTable* ifScope = new SymTable("if_block", currentSymTable, "block-if");
         printf("Entering scope: if_block at line %d\n", yylineno);
         currentSymTable = ifScope;
     }
     '#'
     {
-        // Exit the IF block scope
         currentSymTable->printTableToFile("symbol_table.txt", true);
         SymTable* oldScope = currentSymTable;
         currentSymTable = currentSymTable->getParent();
@@ -431,22 +433,20 @@ if_statement:
     }
     | IF P_OPEN boolean_expression P_CLOSE A_OPEN statement_list 
     {
-        // Enter a new scope for the IF block
+        
         SymTable* ifScope = new SymTable("if_block", currentSymTable, "block-if");
         printf("Entering scope: if_block at line %d\n", yylineno);
         currentSymTable = ifScope;
     }
     A_CLOSE ELSE A_OPEN statement_list A_CLOSE
     {
-        // Exit the IF block scope
+        
         currentSymTable->printTableToFile("symbol_table.txt", true);
-
-        // Create and manage a new scope for the ELSE block
         SymTable* elseScope = new SymTable("else_block", currentSymTable, "block-else");
         printf("Entering scope: else_block at line %d\n", yylineno);
         currentSymTable = elseScope;
 
-        // Exit the ELSE block scope
+        
         currentSymTable->printTableToFile("symbol_table.txt", true);
         SymTable* oldScope = currentSymTable;
         currentSymTable = currentSymTable->getParent();
@@ -460,7 +460,7 @@ while_statement:
     {
          SymTable* whileSymTable = new SymTable("while", currentSymTable, "block - while");
          printf("Entering while-scope at line%d\n", yylineno);
-        currentSymTable = whileSymTable; // Switch to block scope
+        currentSymTable = whileSymTable; 
     }
     statement_list A_CLOSE
     { 
@@ -480,42 +480,37 @@ postfix_incr_decre:
     ;
 
 for_statement:
-    FOR P_OPEN assignment_statement boolean_expression ';' prefix_incr_decre P_CLOSE BGIN statement_list END
+    FOR P_OPEN assignment_statement boolean_expression ';' prefix_incr_decre P_CLOSE BGIN statement_list 
     {
-        // Create a new symbol table for the block scope inside the 'for' loop
+        
         SymTable* forSymTable = new SymTable("for", currentSymTable);
-        currentSymTable = forSymTable; // Switch to the block scope
-
-        // Execute the statements inside the 'for' loop
+        currentSymTable = forSymTable; 
+        currentSymTable->printTableToFile("symbol_table.txt", true);
+    }END
+    {
         printf("For loop executed\n");
-         currentSymTable->printTableToFile("symbol_table.txt", true);
-        // Exit the block scope after the loop
         SymTable* oldScope = currentSymTable;
         currentSymTable = currentSymTable->getParent();
         delete oldScope;
     }
     | FOR P_OPEN assignment_statement boolean_expression ';' postfix_incr_decre P_CLOSE BGIN statement_list END
     {
-        // Create a new symbol table for the block scope inside the 'for' loop
+        
         SymTable* blockSymTable = new SymTable("block", currentSymTable);
-        currentSymTable = blockSymTable; // Switch to the block scope
+        currentSymTable = blockSymTable; 
          currentSymTable->printTableToFile("symbol_table.txt", true);
-        // Execute the statements inside the 'for' loop
         printf("For loop executed\n");
-
-        // Exit the block scope after the loop
         currentSymTable = currentSymTable->parent;
     }
     | FOR P_OPEN assignment_statement boolean_expression ';' ID ASSIGN expression P_CLOSE BGIN statement_list END
     {
-        // Create a new symbol table for the block scope inside the 'for' loop
+        
         SymTable* blockSymTable = new SymTable("block", currentSymTable);
-        currentSymTable = blockSymTable; // Switch to the block scope
+        currentSymTable = blockSymTable; 
          currentSymTable->printTableToFile("symbol_table.txt", true);
-        // Execute the statements inside the 'for' loop
+        
         printf("For loop executed\n");
 
-        // Exit the block scope after the loop
         currentSymTable = currentSymTable->parent;
     }
     ;
@@ -528,10 +523,16 @@ return_statement:
 print_statement:
     PRINT P_OPEN expression P_CLOSE ';'
     {
-        $$=$3;
-       cout << "Eval value: " << ast.evaluateTree() << endl; //ast.printTree(); 
+        $$ = $3;
+        cout << "PRINT value: " << ast.evaluateTree() << endl;
+    }
+    | PRINT P_OPEN boolean_expression P_CLOSE ';'
+    {
+        $$ = $3;
+        cout << "PRINT value: " << (ast.evaluateTree()) << endl;
     }
     ;
+
 typeof_statement:
     TYPEOF P_OPEN expression P_CLOSE ';'
     {  
@@ -557,7 +558,7 @@ typeof_statement:
                                 cout << "TypeOf value: ";
                                 string resultValue = ast.evaluateTree();
 
-                                // Assuming your evaluateTree() function returns a string representation of the result
+                                
 
                                 if (isInteger(resultValue)) {
                                     cout << "Integer" << endl;
@@ -572,26 +573,6 @@ typeof_statement:
                                 ast.printTree();         
                              }
     ;
-
-/* statement_typeof: expression {  
-                                cout << "TypeOf value: ";
-                                string resultValue = ast.evaluateTree();
-
-                                // Assuming your evaluateTree() function returns a string representation of the result
-
-                                if (isInteger(resultValue)) {
-                                    cout << "Integer" << endl;
-                                } else if (isFloat(resultValue)) {
-                                    cout << "Float" << endl;
-                                } else if (isBoolean(resultValue)) {
-                                    cout << "Boolean" << endl;
-                                } else {
-                                    cout << "Unknown" << endl;
-                                }
-
-                                ast.printTree();         
-                             } */
-                             ;
 
 // expresii aritmetice
 expression:
@@ -684,14 +665,14 @@ expression:
     {
         if (!currentSymTable->existsVar($1)) {
             yyerror(("Undeclared variable: " + std::string($1)).c_str());
-            $$ = nullptr;  // Handle undeclared variable
+            $$ = nullptr;  
         } else {
-            // Fetch the type and value of the variable from the symbol table
+           
             std::string varType = currentSymTable->getVarType($1);
             std::string varValue = currentSymTable->getVarValue($1);
 
-            $$ = new Node{NULL, NULL, varValue, varType};  // Create a new node with the value and type
-            ast.AddNode(varValue, NULL, NULL, varType);    // Add to AST
+            $$ = new Node{NULL, NULL, varValue, varType};  
+            ast.AddNode(varValue, NULL, NULL, varType); 
         }
     }
     ;
@@ -701,10 +682,6 @@ expression:
 boolean_expression:
     expression GT expression
     { 
-                        if($1->type=="bool"||$3->type=="bool")
-                        {
-                            yyerror("Cannot perform mathematical operations on type 'bool'");
-                        }
                         if($1->type!=$3->type)
                         {
                             string err="Operands have different types! '"+$1->type+"' > '"+$3->type+"'";
@@ -714,10 +691,6 @@ boolean_expression:
                         ast.AddNode(">",$1,$3,"bool");}
     | expression LT expression
      { 
-                        if($1->type=="bool"||$3->type=="bool")
-                            {
-                                yyerror("Cannot perform mathematical operations on type 'bool'");
-                            }
                         if($1->type!=$3->type)
                             { 
                                 string err="Operands have different types! '"+$1->type+"' < '"+$3->type+"'";
@@ -727,10 +700,6 @@ boolean_expression:
                             ast.AddNode("<",$1,$3,"bool");}
     | expression GTE expression
     { 
-                        if($1->type=="bool"||$3->type=="bool")
-                        {
-                            yyerror("Cannot perform mathematical operations on type 'bool'");
-                        }
                         if($1->type!=$3->type)
                         {
                             string err="Operands have different types! '"+$1->type+"' >= '"+$3->type+"'";
@@ -740,10 +709,6 @@ boolean_expression:
                         ast.AddNode(">=",$1,$3,"bool");}
     | expression LTE expression
      { 
-                        if($1->type=="bool"||$3->type=="bool")
-                            { 
-                                yyerror("Cannot perform mathematical operations on type 'bool'");
-                            }
                         if($1->type!=$3->type)
                             {
                                 string err="Operands have different types! '"+$1->type+"' <= '"+$3->type+"'";
@@ -755,10 +720,6 @@ boolean_expression:
     {
         printf("AM PARSAT == \n");
          { 
-                        if($1->type=="bool"||$3->type=="bool")
-                        {
-                            yyerror("Cannot perform mathematical operations on type 'bool'");
-                        }
                         if($1->type!=$3->type)
                         {
                             string err="Operands have different types! '"+$1->type+"' == '"+$3->type+"'";
@@ -770,10 +731,7 @@ boolean_expression:
     }
     | expression NEQ expression
      { 
-                        if($1->type=="bool"||$3->type=="bool")
-                        {
-                            yyerror("Cannot perform mathematical operations on type 'bool'");
-                        }
+                
                         if($1->type!=$3->type)
                         {
                             string err="Operands have different types! '"+$1->type+"' != '"+$3->type+"'";
@@ -829,14 +787,14 @@ boolean_expression:
     {
         if (!currentSymTable->existsVar($1)) {
             yyerror(("Undeclared variable: " + std::string($1)).c_str());
-            $$ = nullptr;  // Handle undeclared variable
+            $$ = nullptr;  
         } else {
-            // Fetch the type and value of the variable from the symbol table
+            
             std::string varType = currentSymTable->getVarType($1);
             std::string varValue = currentSymTable->getVarValue($1);
 
-            $$ = new Node{NULL, NULL, varValue, varType};  // Create a new node with the value and type
-            ast.AddNode(varValue, NULL, NULL, varType);    // Add to AST
+            $$ = new Node{NULL, NULL, varValue, varType};  
+            ast.AddNode(varValue, NULL, NULL, varType);  
         }
     }
     ;
