@@ -58,4 +58,53 @@ This project implements a custom programming language with syntax, semantic anal
   - Evaluates right-hand side expressions in assignments.
 
 ## Example Program
+class exemplu {
+  int a;
+  int b;
+  func int interschimbare(int c, int d) {
+    int z;
+    z:=3;
+    if(z == 3)
+    {
+      z:=4;
+      int g;
+    #
+  }
+};
 
+
+int y;
+bool z;
+
+func int add(int a, int b) {
+    return a + b;
+}
+
+func int sub(int m, int n)
+{
+  return m-n;
+}
+
+func void main() begin
+int i;
+for(i:=1;i<=10;i++)
+   begin
+      x++;
+      int l;
+   end
+   int x;
+  add(1, 2);
+ int q;
+  q:=2;
+  array int k[12][32][4];
+  int j;
+  j:=4;
+  bool v;
+  bool w;
+  v :=true;
+  w:=false;
+  TypeOf(j+3);
+  TypeOf(q>j);
+  Print(v);
+  Print(j/2+q-7);
+end
