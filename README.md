@@ -58,6 +58,7 @@ This project implements a custom programming language with syntax, semantic anal
   - Evaluates right-hand side expressions in assignments.
 
 ## Example Program
+```c
 class exemplu {
   int a;
   int b;
@@ -108,3 +109,4 @@ for(i:=1;i<=10;i++)
   Print(v);
   Print(j/2+q-7);
 end
+```
